@@ -1,5 +1,5 @@
 import { config } from "dotenv";
-import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
 export const envSchema = z.object({
@@ -26,8 +26,8 @@ export const envSchema = z.object({
 export type Environment = z.infer<typeof envSchema>;
 export function loadEnvironment(): Environment {
   // Explicit backend overrides root; injected process variables take precedence.
-  config({ path: resolve(process.cwd(), ".env"), quiet: true });
-  config({ path: resolve(process.cwd(), "..", ".env"), quiet: true });
+config({ path: fileURLToPath(new URL("../../.env", import.meta.url)), quiet: true });
+config({ path: fileURLToPath(new URL("../../../.env", import.meta.url)), quiet: true });
   if (
     !process.env.SUPABASE_SERVICE_ROLE_KEY &&
     process.env.SUPABASE_SECRET_KEY

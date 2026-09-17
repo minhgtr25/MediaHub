@@ -4,7 +4,7 @@ import { once } from "node:events";
 process.env.NODE_ENV = "test";
 process.env.SUPABASE_URL = "http://127.0.0.1:59999";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "test-only-not-a-real-key";
-const { app } = await import("../dist/app.js");
+const { app } = await import("../dist/app.mjs");
 const { db } = await import("../dist/db.js");
 const { canAccess, canTransition } = await import("../dist/domain.js");
 const { leadSchema } = await import("../dist/lead-routes.js");

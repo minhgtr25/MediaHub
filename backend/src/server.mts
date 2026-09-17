@@ -1,4 +1,4 @@
-import { app } from "./app.js";
+import { app } from "./app.mjs";
 import { env } from "./config/database.js";
 const server = app.listen(env.PORT, () =>
   console.info(`MediaHub API listening on ${env.PORT}`),
