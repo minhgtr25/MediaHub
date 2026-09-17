@@ -4,7 +4,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { CompanyContact } from "../../contexts/SiteSettings";
 import { useApi } from "../../hooks/useApi";
 import { ActionForm, Field, State, Pagination, money } from "../../components/ui";
-import { Metadata } from "./PublicContentPages";
+import { Metadata } from "../../components/Metadata";
 import { api, post, patch } from "../../services/api";
 
 type Service = {

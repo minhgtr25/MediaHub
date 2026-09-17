@@ -1,6 +1,6 @@
 import {SupportInbox,SupportConversation} from './pages/shared/SupportPages';
 import {PaymentSettingsPage,PaymentsPage} from './pages/shared/PaymentPages';
-import { RouteMetadata } from "./pages/public/PublicContentPages";
+import { RouteMetadata } from "./components/Metadata";
 import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { PublicLayout, CustomerLayout, AdminLayout, StaffLayout } from "./layouts/ApplicationLayouts";
@@ -102,6 +102,9 @@ const Projects = lazy(() =>
 const Creators = lazy(() =>
   import("./pages/public/CreatorDiscoveryPage").then((module) => ({ default: module.Creators })),
 );
+const CreatorProfile = lazy(() =>
+  import("./pages/public/CreatorDiscoveryPage").then((module) => ({ default: module.CreatorProfile })),
+);
 const MessengerPage = lazy(() => import("./pages/shared/MessengerPage").then((module) => ({ default: module.MessengerPage })));
 const ProjectDetail = lazy(() =>
   import("./pages/public/ProjectPortfolioPages").then((module) => ({ default: module.ProjectDetail })),
@@ -189,8 +192,9 @@ export default function App() {
       <RouteMetadata />
       <Suspense
         fallback={
-          <div className="panel skeleton" role="status">
-            Đang tải trang…
+          <div className="app-loading" role="status" aria-live="polite">
+            <span className="loading-mark">▶</span>
+            <span>Đang tải MediaHub…</span>
           </div>
         }
       >
@@ -223,6 +227,7 @@ export default function App() {
             <Route path="/projects" element={<Projects />} />
             <Route path="/projects/:id" element={<ProjectDetail />} />
             <Route path="/creators" element={<Creators />} />
+            <Route path="/creators/:slug" element={<CreatorProfile />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />

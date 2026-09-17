@@ -1,6 +1,6 @@
 import { useAuth } from "../contexts/AuthContext";
 import { CompanyContact } from "../contexts/SiteSettings";
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   Bell,
@@ -36,8 +36,10 @@ export function PublicLayout({ children }: { children?: ReactNode }) {
     "/reset-password",
   ].includes(location.pathname);
   const workspace = auth.role === "ADMIN" ? "/admin" : auth.role === "STAFF" ? "/staff" : "/customer";
+  useEffect(() => setOpen(false), [location.pathname]);
   return (
     <div className={`app${isAuthPage ? " auth-layout" : ""}`}>
+      <a className="skip-link" href="#main-content">Đi đến nội dung chính</a>
       <header className="topbar">
         <Link className="brand" to="/">
           <span className="brand-mark">▶</span>
@@ -49,9 +51,9 @@ export function PublicLayout({ children }: { children?: ReactNode }) {
         </Link>
         <nav className={open ? "mobile-nav" : "desktop-nav"}>
           {nav.map(([t, h]) => (
-            <a key={t} href={h} onClick={() => setOpen(false)}>
+            <NavLink key={t} to={h} end={h === "/"} onClick={() => setOpen(false)}>
               {t}
-            </a>
+            </NavLink>
           ))}
         </nav>
         <div className="top-actions">
@@ -82,7 +84,9 @@ export function PublicLayout({ children }: { children?: ReactNode }) {
           </button>
         </div>
       </header>
-      {children ?? <Outlet />}
+      <div id="main-content" className="public-content" tabIndex={-1}>
+        {children ?? <Outlet />}
+      </div>
       <Footer />
     </div>
   );
@@ -126,7 +130,7 @@ export function CustomerLayout({ children }: { children?: ReactNode }) {
           <LogoutButton />
         </div>
       </aside>
-      <main className="dash-main">{children ?? <Outlet />}</main>
+      <main id="main-content" className="dash-main">{children ?? <Outlet />}</main>
     </DashboardShell>
   );
 }
@@ -204,7 +208,7 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
           <LogoutButton />
         </div>
       </aside>
-      <main className="dash-main">{children ?? <Outlet />}</main>
+      <main id="main-content" className="dash-main">{children ?? <Outlet />}</main>
     </DashboardShell>
   );
 }
@@ -306,9 +310,9 @@ function Footer() {
       </div>
       <div>
         <b>MediaHub</b>
-        <a href="/about">Về chúng tôi</a>
+        <Link to="/about">Về chúng tôi</Link>
         <Link to="/projects">Dự án</Link>
-        <a href="/services">Dịch vụ</a>
+        <Link to="/services">Dịch vụ</Link>
       </div>
       <div>
         <b>Dành cho khách hàng</b>
@@ -327,4 +331,4 @@ function Footer() {
   );
 }
 
-export function StaffLayout(){return <DashboardShell title="Nhân viên hỗ trợ"><aside className="side"><Link className="brand side-brand" to="/"><span className="brand-mark">▶</span><b>MediaHub</b></Link><p className="side-label">NHÂN VIÊN HỖ TRỢ</p><SideLink to="/staff/dashboard" icon={<LayoutDashboard/>}>Hàng đợi hỗ trợ</SideLink><SideLink to="/staff/notifications" icon={<Bell/>}>Thông báo</SideLink><SideLink to="/staff/profile" icon={<Settings/>}>Hồ sơ & Bảo mật</SideLink><div className="side-bottom"><LogoutButton/></div></aside><main className="dash-main"><Outlet/></main></DashboardShell>}
+export function StaffLayout(){return <DashboardShell title="Nhân viên hỗ trợ"><aside className="side"><Link className="brand side-brand" to="/"><span className="brand-mark">▶</span><b>MediaHub</b></Link><p className="side-label">NHÂN VIÊN HỖ TRỢ</p><SideLink to="/staff/dashboard" icon={<LayoutDashboard/>}>Hàng đợi hỗ trợ</SideLink><SideLink to="/staff/notifications" icon={<Bell/>}>Thông báo</SideLink><SideLink to="/staff/profile" icon={<Settings/>}>Hồ sơ & Bảo mật</SideLink><div className="side-bottom"><LogoutButton/></div></aside><main id="main-content" className="dash-main"><Outlet/></main></DashboardShell>}

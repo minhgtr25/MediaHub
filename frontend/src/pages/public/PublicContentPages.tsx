@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useLocation } from "react-router-dom";
 import { useApi } from "../../hooks/useApi";
 import { State, Pagination, Page } from "../../components/ui";
 type Collection<T> = { items: T[]; total: number };
@@ -179,84 +178,5 @@ export function ActivityLogs() {
         />
       </State>
     </Page>
-  );
-}
-export function Metadata({
-  title,
-  description,
-}: {
-  title: string;
-  description?: string;
-}) {
-  useEffect(() => {
-    document.title = `${title} | MediaHub`;
-    const values: Record<string, string> = {
-      description:
-        description ??
-        "MediaHub — dịch vụ truyền thông được quản lý từ brief đến bàn giao.",
-      "og:title": `${title} | MediaHub`,
-      "og:description": description ?? "Dịch vụ truyền thông MediaHub",
-      "og:url": window.location.origin + window.location.pathname,
-      robots:
-        window.location.pathname.startsWith("/admin") ||
-        window.location.pathname.startsWith("/customer")
-          ? "noindex,nofollow"
-          : "index,follow",
-    };
-    for (const [key, content] of Object.entries(values)) {
-      const attribute = key.startsWith("og:") ? "property" : "name";
-      let node = document.head.querySelector<HTMLMetaElement>(
-        `meta[${attribute}="${key}"]`,
-      );
-      if (!node) {
-        node = document.createElement("meta");
-        node.setAttribute(attribute, key);
-        document.head.append(node);
-      }
-      node.content = content;
-    }
-    let canonical = document.head.querySelector<HTMLLinkElement>(
-      'link[rel="canonical"]',
-    );
-    if (!canonical) {
-      canonical = document.createElement("link");
-      canonical.rel = "canonical";
-      document.head.append(canonical);
-    }
-    canonical.href = window.location.origin + window.location.pathname;
-  }, [title, description]);
-  return null;
-}
-export function RouteMetadata() {
-  const { pathname } = useLocation();
-  const titles: Record<string, string> = {
-    "/": "Dịch vụ truyền thông",
-    "/about": "Về MediaHub",
-    "/services": "Dịch vụ",
-    "/portfolio": "Portfolio",
-    "/projects": "Portfolio",
-    "/partners": "Đối tác",
-    "/process": "Quy trình",
-    "/contact": "Liên hệ",
-    "/request-project": "Bắt đầu dự án",
-    "/login": "Đăng nhập",
-    "/register": "Đăng ký",
-    "/forgot-password": "Quên mật khẩu",
-    "/reset-password": "Đặt lại mật khẩu",
-    "/privacy": "Chính sách bảo mật",
-    "/terms": "Điều khoản sử dụng",
-  };
-  return (
-    <Metadata
-      key={pathname}
-      title={
-        titles[pathname] ??
-        (pathname.startsWith("/admin")
-          ? "Quản trị"
-          : pathname.startsWith("/customer")
-            ? "Không gian khách hàng"
-            : "MediaHub")
-      }
-    />
   );
 }
