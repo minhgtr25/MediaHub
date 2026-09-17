@@ -35,6 +35,7 @@ import { publicLeadRoutes, adminLeadRoutes } from "./lead-routes.js";
 import { creatorRoutes } from "./creator-routes.js";
 import { messagingRoutes } from "./messaging-routes.js";
 export const app = express();
+export default app;
 app.set("trust proxy", env.TRUST_PROXY_HOPS);
 app.use("/api", (_req, res, next) => {
   res.set("Cache-Control", "no-store");
