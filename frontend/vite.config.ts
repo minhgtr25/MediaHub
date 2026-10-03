@@ -4,4 +4,5 @@ export default defineConfig({
   plugins: [react()],
   envDir: "..",
   server: { proxy: { "/api": "http://localhost:5000" } },
+  preview: { proxy: { "/api": "http://localhost:5000" } },
 });

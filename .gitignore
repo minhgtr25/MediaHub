@@ -11,3 +11,9 @@ dist/
 /frontend/.agents/
 /frontend/skills-lock.json
 /design-reference/
+
+# Local test credentials (never commit)
+/.qa/
+
+# Workspace-installed agent skills
+/.agents/

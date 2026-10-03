@@ -1,5 +1,5 @@
 import { once } from "node:events";
-import { app } from "../dist/app.js";
+import { app } from "../dist/app.mjs";
 const server = app.listen(0, "127.0.0.1");
 await once(server, "listening");
 const base = `http://127.0.0.1:${server.address().port}`;
@@ -8,6 +8,9 @@ try {
     "/api/health",
     "/api/ready",
     "/api/public/services",
+    "/api/public/home",
+    "/api/public/creators",
+    "/api/public/creators/filters",
     "/api/public/portfolio",
     "/api/public/testimonials",
     "/api/public/partners",

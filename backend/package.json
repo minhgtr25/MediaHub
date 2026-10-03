@@ -14,7 +14,9 @@
     "lint": "eslint src",
     "db:check": "npm run build && node scripts/check-migrations.mjs",
     "db:migrate": "npm run build && node scripts/migrate.mjs --apply",
-    "db:seed-demo": "npm run build && node scripts/seed-demo.mjs --apply"
+    "db:seed-demo": "npm run build && node scripts/seed-demo.mjs --apply",
+    "db:test-accounts": "npm run build && node scripts/provision-test-accounts.mjs --apply",
+    "db:verify-test-accounts": "npm run build && node scripts/verify-test-accounts.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",

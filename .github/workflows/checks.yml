@@ -20,5 +20,6 @@ jobs:
         working-directory: frontend
       - run: npm run lint && npm run typecheck && npm test
         working-directory: backend
-      - run: npm run lint && npm run typecheck && npm run build
+      - run: npm run lint && npm run typecheck && npm test && npm run build
         working-directory: frontend
+      - run: node backend/scripts/check-client-secrets.mjs
