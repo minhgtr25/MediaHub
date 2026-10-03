@@ -27,7 +27,9 @@ npm run db:check --prefix backend
 npm run db:migrate --prefix backend
 ```
 
-`db:check` validates pending migrations and the workflow in a transaction and rolls everything back. `db:migrate` applies additive migrations 004–013 with an advisory lock and checksum ledger. Before commit, it runs workflow assertions in a savepoint and rolls back the synthetic test data. Previously applied SQL files must not be edited. The runner is repeatable and skips unchanged applied migrations.
+`db:check` validates pending migrations and workflow/authorization/request/commerce/contract/order-payment/production assertions in a transaction and rolls everything back. `db:migrate` applies migrations 004–024 with an advisory lock and checksum ledger. Before commit, it runs all seven assertion suites in a savepoint and rolls back synthetic test data. Previously applied SQL files must not be edited. The runner skips unchanged applied migrations. Migration 019 aligns BUSINESS ownership with CUSTOMER and active conversation membership. Migration 020 adds separate requests/packages, assignment history, private notes/files and linked conversations. Migration 021 reuses quotations/items with an exclusive request/project origin, adds proposals and order snapshots, hides unpublished drafts, freezes sent terms and serializes customer acceptance. Migration 022 adds versioned contract terms and immutable APPLICATION acknowledgment, plus synchronized order/request transfers. Owner consent moves an order to WAITING_PAYMENT without creating a receipt or production project. Migration 023 adds separate order payment requests/immutable manual-bank receipts, bounded outstanding amounts and Admin verification; enough verified receipt can confirm an order without creating production. No historic orders, signatures or receipts are backfilled. Deploy the corresponding API/UI together; new request quotes are excluded from legacy quotation/payment routes.
+
+Migration 024 reuses projects/milestones with a nullable order origin and separate production_status. Confirmed-order creation independently checks acknowledgment/verified receipts; current assignment gates production/milestone actions. New-origin rows use the order workspace and are excluded from legacy project mutation APIs. No old project status or financial evidence is converted. See [production workflow](../PRODUCTION_WORKFLOW.md).
 
 The scripts do not persist test users, customers, invoices or service records. Run database checks during a suitable maintenance window because they acquire brief schema locks.
 
@@ -63,11 +65,15 @@ Website settings are public editorial content when published. Never store creden
 
 ## Workflow
 
-Visitors submit enquiries with optional private PDF/image attachments. Administrators qualify enquiries and invite customers through Supabase Auth. Conversion matches an existing customer by email and creates a project when a project enquiry has a selected active service; repeated conversion reuses the project.
+Visitors submit public contact enquiries with optional private PDF/image attachments. Service-request entry requires active CUSTOMER/BUSINESS and preserves selected service/package/creator through login. `/customer/requests/new` creates a separate request and commercial conversation atomically; it creates no project/order or payment obligation. Staff sees reduced queue summaries, then claims a request to view its brief, converse, record private notes, transfer/release or change consultation status. Admin oversees requests and manages service packages; each submitted brief preserves its package snapshot. Creator proposals, quote versions, accepted-order snapshots and versioned contract acknowledgment are implemented. New-order manual payment requests and immutable Admin-verified receipts are implemented; order production planning/milestones are implemented; deliverable/final-payment/refund/provider gates remain pending; see [the database refactor plan](../DATABASE_REFACTOR_PLAN.md) and [contract integration](../CONTRACT_INTEGRATION.md).
+
+Legacy `/customer/projects/new`, public PROJECT_REQUEST lead identity checks and admin lead/project conversion remain compatible. Existing conversion matches customers by verified email and reuses an already converted project; it is a separate legacy path.
 
 Administrators review projects, save/edit quotation drafts, preview and send quotations. Customers confirm acceptance or rejection. The server calculates totals, discounts and tax. Projects progress through production, deliverable review and revisions. Customer acceptance completes the project and creates a draft invoice. Administrators issue it and record payment only after confirming actual receipt. There is no payment gateway or simulated payment.
 
-Messages are persisted project communications. Milestones, notifications and status history come from PostgreSQL. STAFF exists as a future database role but has no enabled workspace. Recruitment did not exist in the baseline and was not introduced.
+Messages, milestones, notifications and history come from PostgreSQL. Staff has request consultation and the existing support workspace; legacy project/payment access stays Admin/customer only. Commercial request conversations use current owner/assignment/Admin scope, stable message pagination and private attachments in project-files; private notes/transfer reasons are excluded from customer views. Direct member-only Messenger and deposit/balance plans remain compatible. Legacy invoice/manual receipts still require reconciliation with installment confirmations before financial release; see [the audit](../PROJECT_AUDIT.md). No payment gateway or e-sign provider is configured.
+
+For the user-requested local test identities, run `npm run db:test-accounts --prefix backend`; it creates six confirmed Auth users on the configured Supabase project and assigns roles through manage_user. The shared test password was explicitly requested by the project owner. Credentials live only in ignored `.qa/ROLE_TEST_ACCOUNTS.md` and manifest; no tokens are saved and no email is sent. `npm run db:verify-test-accounts --prefix backend` checks sign-in/current role and 60 read-only API permission probes. This command is separate from rollback-only migration fixtures; do not use seed-demo to provision role tests or overwrite existing users/content.
 
 ## Storage and Auth configuration
 
@@ -108,6 +114,7 @@ For separate hosting, publish `frontend/dist`, run `npm start` from the built ba
 ```powershell
 npm run lint --prefix frontend
 npm run typecheck --prefix frontend
+npm test --prefix frontend
 npm run build --prefix frontend
 npm run lint --prefix backend
 npm run typecheck --prefix backend
@@ -115,8 +122,12 @@ npm test --prefix backend
 npm run db:check --prefix backend
 node backend/scripts/smoke.mjs
 node backend/scripts/check-storage.mjs
+node backend/scripts/check-client-secrets.mjs
 ```
 
-The smoke script reads the configured API/database. The storage check creates uniquely named temporary QA files, verifies signed versus anonymous access, then removes its own files. Browser verification at 375, 390, 768, 1024 and 1440px remains required.
+The smoke script reads the configured API/database. The storage check creates uniquely named temporary QA files, verifies signed versus anonymous access, then removes its own files. The current progress document records browser coverage separately from API/SQL checks; authenticated customer/staff/admin journeys and full accessibility/responsive acceptance remain release requirements.
 
 After SQL changes, synchronize Prisma using `prisma:pull` and `prisma:generate`. The `auth` schema is included because `profiles.auth_user_id` references `auth.users`. Tables/enums are marked externally managed in Prisma config. Do not use Prisma Migrate or `db push` to replace Supabase SQL migrations. See [Prisma externally managed tables](https://docs.prisma.io/docs/orm/prisma-schema/data-model/externally-managed-tables).
+
+
+Test account provisioning requires `MEDIAHUB_QA_PASSWORD` (minimum 10 characters) supplied through the local environment. Do not commit test credentials; generated manifests stay in `.qa/`. Verification uses the existing private manifest and does not require reprovisioning accounts.
