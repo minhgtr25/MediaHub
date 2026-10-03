@@ -1,0 +1,41 @@
+import { Link } from "react-router-dom";
+import { Metadata } from "../../components/Metadata";
+
+type PolicyKey = "operations" | "terms" | "privacy" | "payments";
+const policies: Record<PolicyKey, {title: string; intro: string; sections: {title: string; text: string}[]}> = {
+  operations: {title: "Quy chế hoạt động", intro: "Cách MediaHub tiếp nhận, tư vấn và triển khai dịch vụ truyền thông.", sections: [
+    {title: "Vai trò trong hệ thống", text: "Guest xem dịch vụ, hồ sơ Creator và các dự án công khai. Customer gửi yêu cầu và nghiệm thu. Staff tư vấn, điều phối và xác nhận thực nhận thanh toán. Creator được công ty cấp tài khoản, xác nhận phân công và cập nhật tiến độ. Admin quản lý hệ thống và nội dung công khai."},
+    {title: "Tiếp nhận và tư vấn", text: "Gửi yêu cầu chưa tạo đơn hàng hoặc phát sinh thanh toán. Hệ thống ưu tiên Staff đang rảnh lâu nhất. Mỗi yêu cầu có một hội thoại xuyên suốt; các báo giá, hợp đồng, tài liệu và tiến độ được gắn với yêu cầu đó."},
+    {title: "Phân công và triển khai", text: "Một dự án có thể có nhiều Creator. Staff đề xuất người phù hợp đang sẵn sàng; mỗi Creator tự xác nhận phân công trong thời hạn lời mời. Trao đổi ngoài hệ thống được phép nhưng tiến độ và nội dung cần theo dõi phải cập nhật trong hệ thống."},
+    {title: "Nghiệm thu và hoàn thành", text: "Customer xem bản nghiệm thu có watermark, phản hồi theo phạm vi đã thống nhất và xác nhận kết quả. Sau khi Staff xác nhận thu đủ tiền, đội Creator bàn giao bản không watermark. Dự án hoàn thành khi tất cả phần việc đã được bàn giao."},
+    {title: "Đánh giá và dự án công khai", text: "Đánh giá gắn với đơn đã hoàn thành và có thể sửa trong 7 ngày sau khi gửi. Admin duyệt trích đoạn nhỏ từ dự án hoàn tất; tên Customer được hiển thị hoặc ẩn danh theo lựa chọn đã ghi nhận. Không công khai toàn bộ tài liệu giao dịch."},
+  ]},
+  terms: {title: "Điều khoản dịch vụ", intro: "Các nguyên tắc sử dụng và xác nhận phạm vi dịch vụ trên MediaHub.", sections: [
+    {title: "Tài khoản và thông tin", text: "Người dùng cung cấp thông tin đúng, giữ riêng thông tin đăng nhập và chỉ thao tác với dữ liệu được cấp quyền. Tài khoản Staff và Creator do công ty cấp; hồ sơ công khai không thay thế xác nhận năng lực, lịch làm việc và báo giá của Staff."},
+    {title: "Báo giá và hợp đồng", text: "Giá trên trang dịch vụ là tham khảo. Giá chính thức, đầu ra, thời hạn, phạm vi chỉnh sửa và người phụ trách được thống nhất trong báo giá và hợp đồng. Xác nhận điều khoản trên hệ thống được lưu theo phiên bản; thay đổi nội dung cần được xác nhận lại."},
+    {title: "Chỉnh sửa và phát sinh", text: "Chỉnh sửa được xử lý trong phạm vi và mức độ đã thống nhất. Yêu cầu bổ sung ngoài phạm vi cần Customer tạo phát sinh, Staff trao đổi báo giá và ghi phụ lục được Customer xác nhận trước khi triển khai. Không tự tăng giá từ trao đổi chat."},
+    {title: "Đổi Creator và trễ hạn", text: "Customer có thể yêu cầu đổi Creator; Staff xem xét, phê duyệt và người mới phải xác nhận phân công. Trễ hạn cần ghi rõ nguyên nhân, bên chịu trách nhiệm và lịch mới trên hệ thống. Creator cũ tiếp tục phụ trách cho đến khi việc thay thế được xác nhận."},
+    {title: "Quyền sử dụng nội dung", text: "Chỉ tải lên nội dung mà bạn có quyền cung cấp hoặc công khai. Bản có watermark dùng để xem và nghiệm thu; bản hoàn thiện được bàn giao sau xác nhận thu đủ. Quyền sử dụng, tệp nguồn và phạm vi bàn giao cụ thể theo hợp đồng của từng dự án."},
+    {title: "Hủy đơn và hoàn tiền", text: "Quy định chi tiết về hủy đơn và hoàn tiền chưa được chốt trong phiên bản hiện tại. Liên hệ Staff phụ trách để ghi nhận yêu cầu và đối chiếu hợp đồng; hệ thống không tự tính phí hủy hoặc hứa hoàn tiền tự động."},
+  ]},
+  privacy: {title: "Chính sách bảo mật", intro: "Thông tin được sử dụng và hiển thị trong quá trình vận hành MediaHub.", sections: [
+    {title: "Thông tin phục vụ dịch vụ", text: "Hệ thống sử dụng thông tin tài khoản, hồ sơ, yêu cầu dịch vụ, hội thoại, tệp trao đổi, báo giá, hợp đồng, tiến độ, đánh giá và ghi nhận thanh toán để xử lý công việc. Không nhập mật khẩu, mã OTP hoặc thông tin thẻ vào hội thoại."},
+    {title: "Phạm vi truy cập", text: "Customer truy cập công việc của mình. Staff xử lý các yêu cầu được giao. Creator truy cập phần việc và hội thoại nhóm được cấp quyền; thông tin thương mại dành cho Customer và Staff được phân quyền riêng. Admin truy cập theo trách nhiệm quản lý và thao tác nghiệp vụ được ghi nhận."},
+    {title: "Nội dung công khai", text: "Hồ sơ chuyên môn, avatar, ảnh bìa và portfolio Creator được dùng để giới thiệu năng lực. Ảnh hồ sơ/portfolio tải lên được lưu trong kho công khai; gỡ mục portfolio có thể chưa xóa ngay tệp ảnh trong kho. Không đưa tài liệu nhạy cảm vào các ảnh công khai này."},
+    {title: "Đánh giá và trích đoạn dự án", text: "Đánh giá của đơn hoàn thành có thể xuất hiện trên hồ sơ Creator. Trích đoạn dự án phải qua Admin duyệt; thông tin Customer được hiển thị theo lựa chọn tên hoặc ẩn danh. Tài liệu hợp đồng và thông tin thanh toán không thuộc nội dung hồ sơ công khai."},
+    {title: "Lưu trữ trên thiết bị", text: "Trình duyệt lưu phiên đăng nhập và lựa chọn giao diện như thu gọn sidebar để duy trì sử dụng. Đăng xuất khi dùng thiết bị chung. Các dịch vụ xác thực, lưu trữ và font hỗ trợ tải nội dung trong phạm vi cấu hình hệ thống."},
+    {title: "Yêu cầu về dữ liệu", text: "Bạn có thể sửa các trường hồ sơ được phép. Nếu cần hỗ trợ truy cập, chỉnh sửa hoặc gỡ thông tin, liên hệ MediaHub để xác minh và xử lý theo loại dữ liệu; hồ sơ giao dịch cần được đối chiếu trước khi thay đổi."},
+  ]},
+  payments: {title: "Thanh toán & bảo mật thanh toán", intro: "Theo dõi tiền cọc, số tiền thực nhận và điều kiện bàn giao sản phẩm.", sections: [
+    {title: "Báo giá và tiền cọc", text: "Customer xác nhận báo giá, hợp đồng và đặt cọc tối thiểu 30% theo mức công ty quy định trước khi triển khai. Staff có thể thiết lập mức cọc cao hơn theo thỏa thuận. Gửi yêu cầu tư vấn không phát sinh thanh toán."},
+    {title: "Thông tin chuyển khoản", text: "Chỉ dùng hướng dẫn thanh toán gắn với đơn dịch vụ và thông tin tài khoản công ty được cung cấp trong hệ thống. Nếu thông tin chưa có hoặc chưa rõ, trao đổi với Staff phụ trách trước khi chuyển. Tích hợp ngân hàng và QR tự động chưa được triển khai."},
+    {title: "Xác nhận tiền thực nhận", text: "Báo đã chuyển tiền hoặc gửi minh chứng chưa đồng nghĩa công ty đã nhận tiền. Staff kiểm tra, đối soát và xác nhận khoản thực nhận; Customer theo dõi số đã nhận và số còn thiếu trong đơn. Không xác nhận thanh toán chỉ từ ảnh QR hay tin nhắn."},
+    {title: "Thanh toán còn lại và bàn giao", text: "Sau nghiệm thu, Customer thanh toán toàn bộ phần còn thiếu, gồm phát sinh đã xác nhận nếu có. Creator chỉ bàn giao bản không watermark sau khi Staff xác nhận thu đủ. Đơn hoàn tất sau khi đội thực hiện bàn giao đủ sản phẩm."},
+    {title: "Bảo vệ thông tin", text: "MediaHub không yêu cầu mật khẩu ngân hàng, mã OTP hoặc mã bảo mật thẻ trong chat. Không chuyển tiền vào tài khoản cá nhân tự gửi ngoài hướng dẫn của đơn. Nếu có thông tin bất thường, liên hệ Staff và kênh hỗ trợ của MediaHub để kiểm tra."},
+    {title: "Hủy đơn và hoàn tiền", text: "Chính sách chi tiết đang được hoàn thiện. Yêu cầu hủy hoặc hoàn tiền được ghi nhận để Staff và công ty đối chiếu hợp đồng; không có hoàn tiền tự động trong phiên bản hiện tại."},
+  ]},
+};
+export function PolicyPage({kind}: {kind: PolicyKey}) {
+  const policy = policies[kind];
+  return <main className="page section policy-page"><Metadata title={policy.title} description={policy.intro}/><header><span className="eyebrow">THÔNG TIN DỊCH VỤ MEDIAHUB</span><h1>{policy.title}</h1><p>{policy.intro}</p><small>Cập nhật nội dung: 03/10/2026 · Phạm vi phiên bản hiện tại</small></header><div className="policy-layout"><nav aria-label="Mục lục chính sách"><h2>Trong trang này</h2>{policy.sections.map((section,i)=><a key={section.title} href={`#policy-${i+1}`}>{i+1}. {section.title}</a>)}<Link to="/contact">Liên hệ hỗ trợ →</Link></nav><article>{policy.sections.map((section,i)=><section key={section.title} id={`policy-${i+1}`}><h2>{i+1}. {section.title}</h2><p>{section.text}</p></section>)}<p className="policy-support">Cần làm rõ nội dung áp dụng cho dự án của bạn? <Link to="/contact">Liên hệ MediaHub</Link> hoặc trao đổi với Staff phụ trách.</p></article></div></main>;
+}

@@ -3,17 +3,20 @@ import {
   useContext,
   useEffect,
   useState,
+  useRef,
   type ReactNode,
 } from "react";
 import type { User } from "@supabase/supabase-js";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { authService } from "../services";
+import { ApiError } from "../services/api";
+import { workspaceHome, type Role } from "../lib/permissions";
 type Profile = {
   id: string;
   full_name: string;
   email: string;
-  role: "CUSTOMER" | "ADMIN" | "STAFF" | "BUSINESS" | "CREATOR" | "STUDENT_CREATOR";
+  role: Role;
   phone: string | null;
   avatar_url: string | null;
   company_name: string | null;
@@ -22,7 +25,7 @@ type Profile = {
 const Context = createContext<{
   currentUser: User | null;
   profile: Profile | null;
-  role: string | null;
+  role: Role | null;
   loading: boolean;
   error: string;
   refresh: () => Promise<void>;
@@ -37,24 +40,33 @@ const Context = createContext<{
   logout: async () => {},
 });
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const generation = useRef(0);
+  const verifiedSessionId = useRef<string | null>(null);
   const [currentUser, setUser] = useState<User | null>(null),
     [profile, setProfile] = useState<Profile | null>(null),
     [loading, setLoading] = useState(true),
     [error, setError] = useState("");
   async function refresh() {
+    const current = ++generation.current;
+    if (!profile) setLoading(true);
     try {
       setError("");
-      setProfile(await authService.me());
+      const nextProfile = await authService.me();
+      if (current === generation.current) { setProfile(nextProfile); verifiedSessionId.current = currentUser?.id ?? null; }
     } catch (e) {
-      setProfile(null);
-      setError((e as Error).message);
+      if (current === generation.current) {
+        setProfile(null);
+        setError((e as Error).message);
+      }
     } finally {
-      setLoading(false);
+      if (current === generation.current) setLoading(false);
     }
   }
   async function logout() {
     const result = await authService.logout();
     if (result.error) throw result.error;
+    generation.current++;
+    verifiedSessionId.current = null;
     setUser(null);
     setProfile(null);
     setError("");
@@ -66,33 +78,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     let active = true;
-    let generation = 0;
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      const current = ++generation;
+      const current = ++generation.current;
+      const background = !!session && verifiedSessionId.current === session.user.id;
       setUser(session?.user ?? null);
-      setProfile(null);
+      if (!background) { setProfile(null); verifiedSessionId.current = null; }
       setError("");
       if (!session) {
         setLoading(false);
         return;
       }
-      setLoading(true);
+      if (!background) setLoading(true);
       setTimeout(() => {
         authService
           .me()
           .then((p) => {
-            if (active && current === generation) setProfile(p);
+            if (active && current === generation.current) { setProfile(p); verifiedSessionId.current = session.user.id; }
           })
           .catch((e) => {
-            if (active && current === generation) setError(e.message);
+            if (background && e instanceof ApiError && (e.status === 0 || e.status >= 500)) return;
+            if (active && current === generation.current) { setProfile(null); verifiedSessionId.current = null; setError(e.message); }
           })
           .finally(() => {
-            if (active && current === generation) setLoading(false);
+            if (active && current === generation.current) setLoading(false);
           });
       }, 0);
     });
     return () => {
       active = false;
+      generation.current++;
       data.subscription.unsubscribe();
     };
   }, []);
@@ -131,10 +145,10 @@ function Protected({ role }: { role?: string | string[] }) {
         replace
       />
     );
-  if (auth.error)
+  if (auth.error || !auth.profile)
     return (
       <div className="panel" role="alert">
-        {auth.error}
+        {auth.error || "Không thể xác thực hồ sơ tài khoản. Vui lòng thử lại."}
         <button className="btn btn-ghost" onClick={auth.refresh}>
           Thử lại
         </button>
@@ -152,7 +166,7 @@ function Protected({ role }: { role?: string | string[] }) {
   if (role && !(Array.isArray(role) ? role.includes(auth.role ?? "") : auth.role === role))
     return (
       <Navigate
-        to={auth.role === "ADMIN" ? "/admin/dashboard" : auth.role === "STAFF" ? "/staff/dashboard" : auth.role === "CUSTOMER" || auth.role === "BUSINESS" ? "/customer/dashboard" : "/messages"}
+        to={workspaceHome(auth.role)}
         replace
       />
     );
@@ -163,3 +177,5 @@ export const AdminRoute = () => <Protected role="ADMIN" />;
 
 export const StaffRoute = () => <Protected role="STAFF" />;
 export const AuthenticatedRoute = () => <Protected />;
+
+export const CreatorRoute = () => <Protected role={["CREATOR", "STUDENT_CREATOR"]} />;

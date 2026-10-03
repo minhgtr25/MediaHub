@@ -38,8 +38,8 @@ export function RouteMetadata() {
     "/": "Dịch vụ truyền thông",
     "/about": "Về MediaHub",
     "/services": "Dịch vụ",
-    "/portfolio": "Portfolio",
-    "/projects": "Portfolio",
+    "/portfolio": "Hồ sơ dự án",
+    "/projects": "Hồ sơ dự án",
     "/creators": "Mạng lưới Creator",
     "/partners": "Đối tác",
     "/process": "Quy trình",
@@ -50,7 +50,9 @@ export function RouteMetadata() {
     "/forgot-password": "Quên mật khẩu",
     "/reset-password": "Đặt lại mật khẩu",
     "/privacy": "Chính sách bảo mật",
-    "/terms": "Điều khoản sử dụng",
+    "/terms": "Điều khoản dịch vụ",
+    "/operating-rules": "Quy chế hoạt động",
+    "/payment-policy": "Thanh toán & bảo mật thanh toán",
   };
   const title = titles[pathname] ?? (pathname.startsWith("/admin") ? "Quản trị" : pathname.startsWith("/customer") ? "Không gian khách hàng" : pathname.startsWith("/staff") ? "Không gian nhân viên" : pathname.startsWith("/creators/") ? "Hồ sơ Creator" : "MediaHub");
   return <Metadata key={pathname} title={title} />;

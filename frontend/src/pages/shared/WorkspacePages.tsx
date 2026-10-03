@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   FolderKanban,
   Clock3,
@@ -33,6 +33,7 @@ import {
 import { ProjectMessages, ProjectMilestones } from "../customer/CustomerBillingAndMessagesPages";
 import { EditProject } from "../admin/ProjectFileManagementPage";
 import { patch, post } from "../../services/api";
+import { RequestOverview } from "./RequestPages";
 
 export function CustomerDashboard() {
   return <Dashboard />;
@@ -48,11 +49,12 @@ function Dashboard({ admin = false }: { admin?: boolean }) {
       <div className="workspace-intro">
         <p>Cùng biến ý tưởng thành những sản phẩm ấn tượng.</p>
         {!admin && (
-          <Link className="btn btn-primary" to="/customer/projects/new">
-            <Plus size={17} /> Đăng dự án mới
+          <Link className="btn btn-primary" to="/customer/requests/new">
+            <Plus size={17} /> Gửi yêu cầu dịch vụ
           </Link>
         )}
       </div>
+      <RequestOverview />
       <State query={query}>
         <Metrics data={query.data} admin={admin} />
         <div className="kpi-grid">
@@ -83,13 +85,13 @@ function Dashboard({ admin = false }: { admin?: boolean }) {
             </div>
           </div>
         </div>
-        <section className="panel">
-          <h2>Thông báo gần đây</h2>
+        <div className="dashboard-lower-grid"><section className="panel dashboard-recent">
+          <div className="panel-head"><h2>Thông báo gần đây</h2><Link to={admin ? "/admin/notifications" : "/customer/notifications"}>Xem tất cả →</Link></div>
           {query.data?.recent_notifications?.map(
-            (notification: { id: string; title: string; message: string }) => (
-              <article key={notification.id}>
-                <h3>{notification.title}</h3>
-                <p>{notification.message}</p>
+            (notification: { id: string; title: string; message: string; created_at?: string; read_at?: string }) => (
+              <article className={notification.read_at ? "recent-read" : "recent-unread"} key={notification.id}>
+                <div className="recent-heading"><h3>{notification.title}</h3><span className="badge">{notification.read_at ? "Đã đọc" : "Chưa đọc"}</span></div>
+                <p>{notification.message}</p>{notification.created_at && <time dateTime={notification.created_at}>{new Date(notification.created_at).toLocaleString("vi-VN")}</time>}
               </article>
             ),
           )}
@@ -115,7 +117,7 @@ function Dashboard({ admin = false }: { admin?: boolean }) {
               Chưa có dự án. Bắt đầu bằng cách gửi yêu cầu đầu tiên của bạn.
             </p>
           )}
-        </div>
+        </div></div>
       </State>
       <h2 className="workspace-section-title">Dự án của bạn</h2>
       <ProjectList admin={admin} />
@@ -266,9 +268,10 @@ export function ProjectList({ admin = false }: { admin?: boolean }) {
 export const date = (value?: string) =>
   value ? new Date(value).toLocaleDateString("vi-VN") : "—";
 export function CreateProject() {
+  const [params] = useSearchParams();
   const navigate = useNavigate();
   const query = useApi("/public/services?limit=100");
-  const [selected, setSelected] = useState<string[]>([]),
+  const [selected, setSelected] = useState<string[]>(() => params.get("service") ? [params.get("service")!] : []),
     [step, setStep] = useState(0);
   return (
     <Page title="Bắt đầu dự án mới">
@@ -290,12 +293,12 @@ export function CreateProject() {
               onSubmit={async (data) => {
                 if (!selected.length)
                   throw new Error("Vui lòng chọn ít nhất một dịch vụ.");
+                const firstService = query.data?.items.find((s: {id: string}) => s.id === selected[0]);
+                if (!firstService) throw new Error("Dịch vụ đã chọn không còn khả dụng. Vui lòng chọn lại.");
                 const result = await projectService.create({
                   title: String(data.get("title")),
                   description: String(data.get("description")),
-                  category: query.data.items.find(
-                    (s: any) => s.id === selected[0],
-                  ).category,
+                  category: firstService.category || firstService.name,
                   budget: Number(data.get("budget")),
                   deadline: String(data.get("deadline")),
                   service_ids: selected,

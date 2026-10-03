@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useApi } from "../../hooks/useApi";
 import { ActionForm, Field, Page, Pagination, State } from "../../components/ui";
 import { post, patch } from "../../services/api";
+import { roles } from "../../lib/permissions";
+const roleLabels: Record<string, string> = { ADMIN: "Quản trị viên", STAFF: "Nhân viên", CUSTOMER: "Khách hàng", BUSINESS: "Khách hàng doanh nghiệp", CREATOR: "Creator", STUDENT_CREATOR: "Creator sinh viên" };
 type User = {
   id: string;
   full_name: string;
@@ -20,10 +22,7 @@ export function AdminUsers() {
     <Page title="Quản lý tài khoản">
       <section className="panel">
         <h2>Mời tài khoản</h2>
-        <p>
-          Gửi lời mời qua Supabase Auth. Nhân viên chỉ có quyền vào khu vực hỗ
-          trợ.
-        </p>
+        <p>Gửi email kích hoạt tài khoản. Staff tư vấn và quản lý công việc được phân công; Creator được cấp sau khi có hợp đồng hợp tác với công ty.</p>
         <ActionForm
           label="Gửi lời mời"
           onSubmit={(data) => {
@@ -85,9 +84,8 @@ export function AdminUsers() {
                 <label className="field">
                   Vai trò
                   <select name="role" defaultValue={user.role}>
-                    <option>ADMIN</option>
-                    <option>CUSTOMER</option>
-                    <option>STAFF</option>
+                    {!roles.some(role => role === user.role) && <option value={user.role}>{roleLabels[user.role]} · vai trò cũ đang chuyển đổi</option>}
+                    {roles.map(role => <option key={role} value={role}>{roleLabels[role]}</option>)}
                   </select>
                 </label>
                 <label className="checkbox-field">

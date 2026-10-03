@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useApi } from "../../hooks/useApi";
 import { State, Pagination, Page } from "../../components/ui";
+import { ServiceProcess } from "../../components/ServiceProcess";
 type Collection<T> = { items: T[]; total: number };
 type Setting = { key: string; title: string; content: string; image: string };
 export function ContentPage({ name, title }: { name: string; title: string }) {
@@ -62,9 +63,10 @@ export function PartnersPage({ embedded = false }: { embedded?: boolean }) {
                   loading="lazy"
                 />
               )}
-              <h2>{partner.name}</h2>
+              <h2><Link to={`/partners/${partner.id}`}>{partner.name}</Link></h2>
               <p>{partner.industry}</p>
               <p>{partner.description}</p>
+              <Link className="btn btn-ghost" to={`/partners/${partner.id}`}>Xem thông tin đối tác →</Link>
               {partner.website && (
                 <a
                   href={partner.website}
@@ -87,50 +89,8 @@ export function PartnersPage({ embedded = false }: { embedded?: boolean }) {
     </section>
   );
 }
-type Process = {
-  id: string;
-  title: string;
-  description: string;
-  step: number;
-  image: string;
-};
 export function ProcessPage({ embedded = false }: { embedded?: boolean }) {
-  const [page, setPage] = useState(1);
-  const query = useApi<Collection<Process>>(`/public/process?page=${page}`);
-  return (
-    <section className={embedded ? "section" : "page section"}>
-      {embedded ? <h2>Quy trình thực hiện</h2> : <h1>Quy trình thực hiện</h1>}
-      <State query={query}>
-        <div className="steps">
-          {query.data?.items.map((step) => (
-            <article className="step" key={step.id}>
-              <span>{String(step.step).padStart(2, "0")}</span>
-              <h3>{step.title}</h3>
-              <p>{step.description}</p>
-              {step.image && (
-                <img
-                  className="catalog-image"
-                  src={step.image}
-                  alt={step.title}
-                  loading="lazy"
-                />
-              )}
-            </article>
-          ))}
-        </div>
-        {!query.data?.items.length && (
-          <p>
-            Liên hệ MediaHub để trao đổi quy trình phù hợp với dự án của bạn.
-          </p>
-        )}
-        <Pagination
-          page={page}
-          total={query.data?.total ?? 0}
-          onChange={setPage}
-        />
-      </State>
-    </section>
-  );
+  return <ServiceProcess embedded={embedded} />;
 }
 type Audit = {
   id: string;

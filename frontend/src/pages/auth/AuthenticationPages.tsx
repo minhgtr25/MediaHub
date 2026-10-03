@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react";
+import { lazy, Suspense, useState, type ReactNode } from "react";
+const CreatorProfessionalProfile=lazy(()=>import("../creator/CreatorProfessionalProfile").then(module=>({default:module.CreatorProfessionalProfile})));
 import { Link, Navigate, useLocation } from "react-router-dom";
 import {
   ArrowRight,
@@ -23,6 +24,8 @@ import { authService } from "../../services";
 import { patch } from "../../services/api";
 import { ActionForm, Field, Page, State, Pagination } from "../../components/ui";
 import { useApi } from "../../hooks/useApi";
+import { loginDestination } from "../../lib/permissions";
+import { AvatarUpload } from "../../components/AvatarUpload";
 
 export function Login() {
   return <AuthScreen mode="login" />;
@@ -53,13 +56,10 @@ function AuthScreen({
     reset: "Tạo mật khẩu mới",
   }[mode];
   const destination = (location.state as { from?: string } | null)?.from;
-  const prefix = auth.role === "ADMIN" ? "/admin/" : auth.role === "STAFF" ? "/staff/" : auth.role === "CUSTOMER" || auth.role === "BUSINESS" ? "/customer/" : "/messages";
   if (auth.role && (mode === "login" || mode === "register"))
     return (
       <Navigate
-        to={
-          destination?.startsWith("/messages") || destination?.startsWith(prefix) ? destination : prefix === "/messages" ? prefix : prefix + "dashboard"
-        }
+        to={loginDestination(auth.role, destination)}
         replace
       />
     );
@@ -109,19 +109,20 @@ function AuthScreen({
             <span>Báo giá và tiến độ minh bạch</span>
           </div>
           <span>
-            <ShieldCheck /> Hợp đồng pháp lý minh bạch
+            <ShieldCheck /> Theo dõi phạm vi và bàn giao
           </span>
         </div>
       </section>
       <section className="auth-card" key={mode}>
         {(mode === "login" || mode === "register") && (
           <div className="auth-tabs">
-            <Link className={mode === "login" ? "active" : ""} to="/login">
+            <Link className={mode === "login" ? "active" : ""} to="/login" state={location.state}>
               <LockKeyhole /> Đăng nhập
             </Link>
             <Link
               className={mode === "register" ? "active" : ""}
               to="/register"
+              state={location.state}
             >
               <UserRound /> Đăng ký
             </Link>
@@ -221,7 +222,8 @@ function AuthScreen({
               label="Mật khẩu"
               type="password"
               icon={<Lock />}
-              placeholder="Ít nhất 8 ký tự"
+                placeholder={mode === "login" ? "Nhập mật khẩu" : "Ít nhất 8 ký tự"}
+                minLength={mode === "login" ? undefined : 8}
             />
           )}
           {(mode === "register" || mode === "reset") && (
@@ -253,7 +255,7 @@ function AuthScreen({
           </p>
         )}
         <p className="auth-foot">
-          <Link to={mode === "login" ? "/register" : "/login"}>
+          <Link to={mode === "login" ? "/register" : "/login"} state={location.state}>
             {mode === "login"
               ? "Chưa có tài khoản? Đăng ký ngay"
               : "Trở về đăng nhập"}{" "}
@@ -261,7 +263,7 @@ function AuthScreen({
           </Link>
         </p>
         <div className="auth-security">
-          <Shield /> Dữ liệu được mã hóa 256-bit SSL tiêu chuẩn Enterprise
+          <Shield /> Đăng nhập bằng tài khoản MediaHub của bạn
         </div>
       </section>
     </div>
@@ -274,6 +276,7 @@ function AuthField({
   type = "text",
   placeholder,
   required = true,
+  minLength,
 }: {
   name: string;
   label: string;
@@ -281,6 +284,7 @@ function AuthField({
   type?: string;
   placeholder?: string;
   required?: boolean;
+  minLength?: number;
 }) {
   const [visible, setVisible] = useState(false);
   const password = type === "password";
@@ -295,7 +299,8 @@ function AuthField({
           type={password && visible ? "text" : type}
           placeholder={placeholder}
           required={required}
-          minLength={password ? 8 : undefined}
+          minLength={minLength}
+          autoComplete={name === "email" ? "email" : password ? (minLength ? "new-password" : "current-password") : name === "full_name" ? "name" : undefined}
         />
         {password && (
           <button
@@ -320,6 +325,7 @@ export function Profile() {
         <section className="panel">
           <h2>Thông tin tài khoản</h2>
           <p>{auth.profile?.email}</p>
+          <AvatarUpload />
           <ActionForm
             onSubmit={async (data) => {
               await patch("/auth/me", {
@@ -391,23 +397,31 @@ export function Profile() {
           </ActionForm>
         </section>
       </div>
+      {["CREATOR","STUDENT_CREATOR"].includes(auth.role||"")&&<Suspense fallback={<section className="panel"><h2>Hồ sơ nghề nghiệp Creator</h2><p>Đang tải công cụ hồ sơ…</p></section>}><CreatorProfessionalProfile/></Suspense>}
     </Page>
   );
 }
 export function Notifications() {
+  const { role } = useAuth();
   const [page, setPage] = useState(1);
-  const query = useApi("/notifications?page=" + page);
+  const [search,setSearch]=useState(''),[term,setTerm]=useState(''),[status,setStatus]=useState('ALL');
+  const query = useApi('/notifications?' + new URLSearchParams({page:String(page),limit:"10",search:term,status}));
   return (
     <Page title="Thông báo">
       <p>Cập nhật mới nhất về dự án và tài khoản của bạn.</p>
+      <div className="notification-toolbar">
+        <form onSubmit={e=>{e.preventDefault();setTerm(search.trim());setPage(1);}}><input aria-label="Tìm kiếm thông báo" placeholder="Tìm nội dung thông báo…" maxLength={100} value={search} onChange={e=>setSearch(e.target.value)}/><select aria-label="Trạng thái thông báo" value={status} onChange={e=>{setStatus(e.target.value);setPage(1);}}><option value="ALL">Tất cả thông báo</option><option value="UNREAD">Chưa đọc</option><option value="READ">Đã đọc</option></select><button className="btn btn-primary">Tìm kiếm</button></form>
+        <ActionForm label="Đánh dấu tất cả đã đọc" onSubmit={()=>patch('/notifications/read-all',{})} onSuccess={query.reload}/>
+      </div>
       <State query={query}>
         <div className="notification-list">
           {query.data?.items.map((n: any) => (
-            <article className="panel" key={n.id}>
-              <span className="eyebrow">{n.read_at ? "ĐÃ ĐỌC" : "MỚI"}</span>
+            <article className={`panel notification-card ${n.read_at ? "is-read" : "is-unread"}`} key={n.id}>
+              <span className="eyebrow">{n.read_at ? "ĐÃ ĐỌC" : "CHƯA ĐỌC"}</span>
               <h2>{n.title}</h2>
               <p>{n.message}</p>
               <small>{new Date(n.created_at).toLocaleString("vi-VN")}</small>
+              {n.target_path && <p><Link to={loginDestination(role || "", n.target_path)}>Mở nội dung liên quan →</Link></p>}
               {!n.read_at && (
                 <ActionForm
                   label="Đánh dấu đã đọc"
@@ -419,9 +433,10 @@ export function Notifications() {
           ))}
         </div>
         {!query.data?.items.length && (
-          <div className="empty-state">Bạn chưa có thông báo mới.</div>
+          <div className="empty-state">{term || status !== "ALL" ? "Không có thông báo phù hợp với bộ lọc." : "Bạn chưa có thông báo."}</div>
         )}
         <Pagination
+          limit={10}
           page={page}
           total={query.data?.total ?? 0}
           onChange={setPage}

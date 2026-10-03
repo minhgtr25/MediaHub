@@ -1,7 +1,7 @@
-import { useRef, useState, type ReactNode, type FormEvent } from "react";
+import { useId, useRef, useState, type ReactNode, type FormEvent } from "react";
 import { useApi } from "../hooks/useApi";
 export const money = (value: number) =>
-  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(
     value ?? 0,
   );
 export const labels: Record<string, string> = {
@@ -9,7 +9,7 @@ export const labels: Record<string, string> = {
   SUBMITTED: "Đã gửi",
   REVIEWING: "Đang xem xét",
   QUOTATION_SENT: "Đã gửi báo giá",
-  QUOTATION_ACCEPTED: "Đã nhận báo giá",
+  QUOTATION_ACCEPTED: "Đã chấp nhận báo giá",
   IN_PROGRESS: "Đang thực hiện",
   WAITING_REVIEW: "Chờ duyệt",
   REVISION: "Đang chỉnh sửa",
@@ -18,6 +18,8 @@ export const labels: Record<string, string> = {
   SENT: "Đã gửi",
   ACCEPTED: "Đã chấp nhận",
   REJECTED: "Từ chối",
+  DECLINED: "Creator từ chối nhận việc",
+  RELEASED: "Đã thu hồi phân công",
   EXPIRED: "Hết hạn",
   PENDING: "Đang chờ",
   PAID: "Đã thanh toán",
@@ -27,6 +29,30 @@ export const labels: Record<string, string> = {
   ACTIVE: "Hoạt động",
   INACTIVE: "Ngừng hoạt động",
   RESOLVED: "Đã giải quyết",
+  OPEN: "Chờ tiếp nhận",
+  CLOSED: "Đã đóng",
+  REPORTED: "Chờ xác minh thanh toán",
+  ISSUED: "Đã phát hành",
+  OVERDUE: "Quá hạn thanh toán",
+  REQUESTED: "Đã yêu cầu chỉnh sửa",
+  UPLOADED: "Đã tải lên",
+  UNASSIGNED: "Chờ tiếp nhận",
+  ASSIGNED: "Đã có người phụ trách",
+  CONSULTING: "Đang tư vấn",
+  WAITING_CUSTOMER: "Chờ bạn bổ sung thông tin",
+  CREATOR_SELECTION: "Đang chọn creator",
+  QUOTE_PREPARING: "Đang chuẩn bị báo giá",
+  QUOTE_SENT: "Báo giá chờ phản hồi",
+  QUOTE_REVISION: "Đang chỉnh báo giá",
+  READY_TO_ORDER: "Sẵn sàng đặt dịch vụ",
+  CONVERTED: "Đã chuyển thành đơn dịch vụ",
+  PROPOSED: "Đã đề xuất", SHORTLISTED: "Đang cân nhắc", SELECTED: "Đã chọn", WITHDRAWN: "Đã thu hồi",
+  VIEWED: "Đã xem", REVISION_REQUESTED: "Khách yêu cầu chỉnh", WAITING_CONTRACT: "Chờ hợp đồng",
+  ACKNOWLEDGED: "Đã xác nhận điều khoản",
+  AWAITING_VERIFICATION: "Chờ Admin đối soát",
+  PLANNING: "Đang lập kế hoạch", READY: "Sẵn sàng thực hiện", ON_HOLD: "Tạm dừng",
+  READY_TO_DELIVER: "Đã nghiệm thu · chờ bàn giao", DELIVERED: "Đã bàn giao",
+  WAITING_PAYMENT: "Chờ thanh toán", CONFIRMED: "Đã xác nhận", WAITING_ACCEPTANCE: "Chờ thu đủ và bàn giao", REFUNDED: "Đã hoàn tiền",
 };
 export const Status = ({ value }: { value: string }) => (
   <span className="status">{labels[value] ?? value}</span>
@@ -38,22 +64,19 @@ export function State({
   query: ReturnType<typeof useApi>;
   children: ReactNode;
 }) {
-  if (query.loading)
+  if (query.loading && query.data === null)
     return (
       <div className="panel skeleton" role="status">
         Đang tải dữ liệu…
       </div>
     );
-  if (query.error)
-    return (
-      <div className="panel error" role="alert">
-        {query.error}
-        <button className="btn btn-ghost" onClick={query.reload}>
-          Thử lại
-        </button>
-      </div>
-    );
-  return <>{children}</>;
+  return <>
+    {query.error && <div className="panel error" role="alert">
+      {query.error}
+      <button className="btn btn-ghost" onClick={query.reload}>Thử lại</button>
+    </div>}
+    {(!query.error || query.data !== null) && children}
+  </>;
 }
 export function Page({
   title,
@@ -134,33 +157,36 @@ export function Field({
   type = "text",
   value,
   required = true,
+  maxLength = 5000,
 }: {
   name: string;
   label: string;
   type?: string;
   value?: string | number;
   required?: boolean;
+  maxLength?: number;
 }) {
+  const fieldId = useId();
   return (
     <div className="field">
-      <label htmlFor={name}>{label}</label>
+        <label htmlFor={fieldId}>{label}</label>
       {type === "textarea" ? (
         <textarea
-          id={name}
+            id={fieldId}
           name={name}
           defaultValue={value}
           required={required}
-          maxLength={5000}
+          maxLength={maxLength}
         />
       ) : (
         <input
-          id={name}
+            id={fieldId}
           name={name}
           type={type}
           defaultValue={value}
           required={required}
           min={type === "number" ? 0 : undefined}
-          maxLength={type === "password" ? undefined : 5000}
+          maxLength={type === "password" ? undefined : maxLength}
           minLength={type === "password" ? 8 : undefined}
           step={type === "number" ? "0.01" : undefined}
         />
@@ -179,8 +205,9 @@ export function Pagination({
   limit?: number;
   onChange: (p: number) => void;
 }) {
+  if (!total || total <= limit) return null;
   return (
-    <div className="toolbar">
+    <nav className="toolbar pagination" aria-label="Phân trang danh sách">
       <button
         className="btn btn-ghost"
         disabled={page <= 1}
@@ -189,7 +216,7 @@ export function Pagination({
         Trước
       </button>
       <span>
-        Trang {page} · {total ?? 0} kết quả
+        Trang {page} / {Math.ceil(total / limit)} · {total} kết quả
       </span>
       <button
         className="btn btn-ghost"
@@ -198,6 +225,6 @@ export function Pagination({
       >
         Sau
       </button>
-    </div>
+    </nav>
   );
 }

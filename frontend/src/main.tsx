@@ -6,6 +6,7 @@ import App from "./App";
 import { SiteSettingsProvider } from "./contexts/SiteSettings";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./styles.css";
+import "./brand.css";
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

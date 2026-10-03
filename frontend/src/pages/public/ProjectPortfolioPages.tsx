@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { CompanyPortfolio } from "../../components/CompanyPortfolio";
+import { Link, useParams } from "react-router-dom";
 import { ArrowRight, Search, PlayCircle } from "lucide-react";
 import { useApi } from "../../hooks/useApi";
-import { State, Pagination } from "../../components/ui";
+import { State } from "../../components/ui";
 import { ProcessPage, PartnersPage } from "./PublicContentPages";
 import { Metadata } from "../../components/Metadata";
 export function Home() {
@@ -222,147 +222,20 @@ function ProjectCard({ p }: { p: any }) {
 function mapPortfolio(p: any) {
   return { ...p, image: p.image_url, desc: p.description };
 }
-export function Projects() {
-  const [params] = useSearchParams();
-  const [q, setQ] = useState(params.get("search") ?? ""),
-    [category, setCategory] = useState(""),
-    [page, setPage] = useState(1);
-  const query = useApi(
-    "/public/portfolio?page=" +
-      page +
-      "&search=" +
-      encodeURIComponent(q) +
-      "&category=" +
-      encodeURIComponent(category),
-  );
-  return (
-    <div className="page section">
-      <SectionTitle
-        kicker="HỒ SƠ DỰ ÁN"
-        title="Dự án nổi bật"
-        sub="Những sản phẩm được MediaHub quản lý và triển khai."
-      />
-      <div className="toolbar">
-        <div className="search-input">
-          <Search />
-          <input
-            aria-label="Tìm dự án"
-            maxLength={100}
-            value={q}
-            onChange={(e) => {
-              setQ(e.target.value);
-              setPage(1);
-            }}
-            placeholder="Tìm dự án…"
-          />
-        </div>
-        <input
-          aria-label="Lọc theo danh mục"
-          placeholder="Danh mục (ví dụ: Video)"
-          value={category}
-          maxLength={100}
-          onChange={(event) => {
-            setCategory(event.target.value);
-            setPage(1);
-          }}
-        />
-      </div>
-      <State query={query}>
-        <div className="project-grid">
-          {query.data?.items.map((p: any) => (
-            <ProjectCard key={p.id} p={mapPortfolio(p)} />
-          ))}
-        </div>
-        {!query.data?.items.length && <p>Chưa có dự án phù hợp.</p>}
-        <Pagination page={page} total={query.data?.total} onChange={setPage} />
-      </State>
-    </div>
-  );
-}
+export function Projects() { return <CompanyPortfolio/>; }
+type PublicProject = {title:string;seo_title?:string;seo_description?:string;description?:string;category?:string;client?:string;industry?:string;year?:number;duration?:string;image_url?:string;challenge?:string;solution?:string;result?:string;deliverables?:string[];gallery?:string[]};
 export function ProjectDetail() {
-  const { id } = useParams();
-  const query = useApi("/public/portfolio/" + id);
+  const {id} = useParams();
+  const query = useApi<PublicProject>(`/public/portfolio/${encodeURIComponent(id || "")}`);
   const p = query.data;
-  return (
-    <div className="page section">
-      <Link to="/projects" className="back">
-        ← Tất cả dự án
-      </Link>
-      <State query={query}>
-        {p && (
-          <>
-            <div className="detail-hero">
-              <div>
-                <span className="eyebrow">{p.category}</span>
-                <Metadata
-                  title={p.seo_title || p.title}
-                  description={p.seo_description || p.description}
-                />
-                <h1>{p.title}</h1>
-                <p>{p.description}</p>
-                <Link to="/request-project" className="btn btn-primary">
-                  Bắt đầu dự án tương tự <ArrowRight />
-                </Link>
-              </div>
-              <img src={p.image_url || "/assets/project-1.png"} alt={p.title} />
-            </div>
-            <div className="detail-grid">
-              <article>
-                {(["challenge", "solution", "result"] as const).map(
-                  (key) =>
-                    p[key] && (
-                      <section key={key}>
-                        <h2>
-                          {
-                            {
-                              challenge: "Thách thức",
-                              solution: "Giải pháp",
-                              result: "Kết quả",
-                            }[key]
-                          }
-                        </h2>
-                        <p className="preserve-lines">{p[key]}</p>
-                      </section>
-                    ),
-                )}
-                {p.deliverables?.length > 0 && (
-                  <>
-                    <h2>Sản phẩm bàn giao</h2>
-                    <ul>
-                      {p.deliverables.map((item: string) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-                {p.gallery?.length > 0 && (
-                  <div className="project-grid">
-                    {p.gallery.map((url: string, index: number) => (
-                      <img
-                        className="catalog-image"
-                        src={url}
-                        key={url}
-                        alt={`${p.title} — ${index + 1}`}
-                        loading="lazy"
-                      />
-                    ))}
-                  </div>
-                )}
-              </article>
-              <aside className="detail-side">
-                <b>Thông tin dự án</b>
-                <p>Khách hàng: {p.client}</p>
-                <p>Dịch vụ: {p.category}</p>
-                {p.industry && <p>Lĩnh vực: {p.industry}</p>}
-                {p.year && <p>Năm: {p.year}</p>}
-                {p.duration && <p>Thời gian: {p.duration}</p>}
-              </aside>
-            </div>
-          </>
-        )}
-      </State>
-    </div>
-  );
+  return <main className="page section project-case-page"><nav className="project-case-breadcrumbs" aria-label="Đường dẫn"><Link to="/">Trang chủ</Link><span>/</span><Link to="/projects">Dự án</Link><span>/</span><span>Hồ sơ dự án</span></nav><State query={query}>{p && <>
+    <Metadata title={p.seo_title || p.title} description={p.seo_description || p.description}/>
+    <header className="project-case-heading"><div className="project-case-tags">{p.category && <span>{p.category}</span>}{p.client && <span>Khách hàng: {p.client}</span>}{p.year && <span>Năm thực hiện: {p.year}</span>}</div><h1>{p.title}</h1>{p.description && <p>{p.description}</p>}</header>
+    {p.image_url && <figure className="project-case-showcase"><img src={p.image_url} alt={p.title}/><figcaption>Hồ sơ sản phẩm MediaHub · {p.category || "Dự án truyền thông"}</figcaption></figure>}
+    <div className="project-case-layout"><article className="project-case-story">{([['challenge','Đề bài & thách thức'],['solution','Giải pháp & ý tưởng sáng tạo'],['result','Kết quả dự án']] as const).map(([key,title])=>p[key] && <section className="project-story-panel" key={key}><span className="eyebrow">{key==='challenge'?'THE BRIEF':key==='solution'?'CREATIVE CONCEPT':'RESULTS & IMPACT'}</span><h2>{title}</h2><p className="preserve-lines">{p[key]}</p></section>)}{Boolean(p.deliverables?.length) && <section className="project-story-panel"><span className="eyebrow">DELIVERABLES</span><h2>Sản phẩm bàn giao</h2><ul className="project-deliverable-list">{p.deliverables?.map(item=><li key={item}>{item}</li>)}</ul></section>}{Boolean(p.gallery?.length) && <section className="project-case-gallery"><h2>Hình ảnh dự án</h2><div>{p.gallery?.map((url,index)=><img src={url} key={`${url}-${index}`} alt={`${p.title} — ảnh ${index+1}`} loading="lazy"/>)}</div></section>}</article>
+    <aside className="project-case-sidebar"><section className="project-story-panel"><h2>Thông tin dự án</h2><dl>{[['Khách hàng',p.client],['Dịch vụ',p.category],['Lĩnh vực',p.industry],['Năm thực hiện',p.year],['Thời gian',p.duration]].map(([name,value])=>value && <div key={name}><dt>{name}</dt><dd>{value}</dd></div>)}</dl></section><section className="project-case-cta"><h2>Bạn muốn thực hiện dự án tương tự?</h2><p>Chia sẻ mục tiêu và ngân sách. Staff sẽ tư vấn phạm vi, đội Creator và báo giá phù hợp.</p><Link className="btn btn-primary" to="/request-project">Yêu cầu tư vấn <ArrowRight size={16}/></Link><Link className="btn btn-ghost" to="/services">Khám phá dịch vụ</Link><small>Gửi yêu cầu chưa phát sinh thanh toán.</small></section></aside></div>
+    <div className="project-case-more"><h2>Khám phá thêm sản phẩm</h2><p>Xem các hồ sơ công khai và trích đoạn đã được duyệt.</p><Link className="btn btn-ghost" to="/projects">Xem tất cả dự án <ArrowRight size={16}/></Link></div>
+  </>}</State></main>;
 }
 export function NotFound() {
   return (
