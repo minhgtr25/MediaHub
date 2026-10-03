@@ -2,8 +2,10 @@ import {Router} from 'express';
 import {z} from 'zod';
 import {db,result,ApiError} from './db.js';
 import {uuid} from './validators.js';
+import { requireRole } from './middleware.js';
+import { commerceRoles, isCustomerRole } from './domain.js';
 export const paymentRoutes=Router();
-paymentRoutes.use((req,_res,next)=>req.identity.role==='STAFF'?next(new ApiError(403,'FORBIDDEN','Không có quyền truy cập thanh toán.')):next());
+paymentRoutes.use(requireRole(commerceRoles));
 paymentRoutes.get('/settings',async(_req,res)=>res.json({success:true,data:await result(db.from('payment_settings').select('*').eq('id','default').single())}));
 paymentRoutes.put('/settings',async(req,res)=>{
  if(req.identity.role!=='ADMIN')throw new ApiError(403,'FORBIDDEN','Chỉ quản trị viên được cấu hình.');
@@ -12,8 +14,8 @@ paymentRoutes.put('/settings',async(req,res)=>{
 });
 paymentRoutes.get('/',async(req,res)=>{
  const page=z.coerce.number().int().min(1).default(1).parse(req.query.page);
- let projects=db.from('projects').select('id,title,status');
- if(req.identity.role==='CUSTOMER')projects=projects.eq('customer_id',req.identity.customer_id!);
+ let projects=db.from('projects').select('id,title,status').is('order_id',null);
+ if(isCustomerRole(req.identity.role))projects=projects.eq('customer_id',req.identity.customer_id!);
  const p=(await result(projects))??[];
  const ids=p.map(x=>x.id);
  if(!ids.length){res.json({success:true,data:{items:[],total:0,page}});return;}
@@ -26,13 +28,14 @@ paymentRoutes.get('/',async(req,res)=>{
 paymentRoutes.get('/eligible-projects',async(req,res)=>{
  if(req.identity.role!=='ADMIN')throw new ApiError(403,'FORBIDDEN','Chỉ quản trị viên.');
  const quotes=(await result(db.from('quotations').select('project_id,total').eq('status','ACCEPTED')))??[];
- const ids=quotes.map(q=>q.project_id);
+ const ids=quotes.map(q=>q.project_id).filter((id): id is string => !!id);
  const projects=ids.length?await result(db.from('projects').select('id,title').in('id',ids).not('status','in','(COMPLETED,CANCELLED)')):[];
  res.json({success:true,data:projects});
 });
 paymentRoutes.post('/:id/:operation',async(req,res)=>{
  const id=uuid.parse(req.params.id),operation=z.enum(['create-plan','report','confirm','reject']).parse(req.params.operation);
  if(operation!=='report'&&req.identity.role!=='ADMIN')throw new ApiError(403,'FORBIDDEN','Chỉ quản trị viên xác nhận thanh toán.');
+ if(operation==='report'&&!isCustomerRole(req.identity.role))throw new ApiError(403,'FORBIDDEN','Chỉ khách hàng được báo chuyển khoản.');
  const payload=operation==='create-plan'?z.object({deposit_percent:z.number().int().min(1).max(99).optional()}).strict().parse(req.body):operation==='report'?z.object({transfer_note:z.string().trim().min(1).max(1000)}).strict().parse(req.body):z.object({}).strict().parse(req.body);
  res.json({success:true,data:await result(db.rpc('payment_action',{actor_id:req.identity.id,operation,target_id:id,payload}))});
 });

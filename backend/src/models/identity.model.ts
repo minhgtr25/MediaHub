@@ -1,4 +1,5 @@
-// Application roles, with STAFF limited to the support workspace.
+import type { Role } from "../domain.js";
+// Stored marketplace roles are preserved; permissions are defined in domain.ts.
 export type Identity = {
   id: string;
   auth_user_id: string;
@@ -8,6 +9,6 @@ export type Identity = {
   avatar_url: string | null;
   company_name: string | null;
   notification_preferences: { email: boolean; in_app: boolean };
-  role: "CUSTOMER" | "ADMIN" | "STAFF" | "BUSINESS" | "CREATOR" | "STUDENT_CREATOR";
+  role: Role;
   customer_id: string | null;
 };

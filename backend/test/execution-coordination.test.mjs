@@ -1,0 +1,32 @@
+import {test,before,after} from 'node:test';
+import assert from 'node:assert/strict';
+import {once} from 'node:events';
+process.env.NODE_ENV='test';process.env.SUPABASE_URL='http://127.0.0.1:59999';process.env.SUPABASE_SERVICE_ROLE_KEY='test-only';
+const {app,apiLimiter}=await import('../dist/app.mjs');const {db}=await import('../dist/db.js');
+const pid='11111111-1111-4111-8111-111111111111',oid='22222222-2222-4222-8222-222222222222',vid='33333333-3333-4333-8333-333333333333',qid='44444444-4444-4444-8444-444444444444';
+let server,base;before(async()=>{server=app.listen(0,'127.0.0.1');await once(server,'listening');base=`http://127.0.0.1:${server.address().port}/api/execution`;});after(()=>new Promise(resolve=>server.close(resolve)));
+const headers={Authorization:'Bearer test-only','Content-Type':'application/json'},post=(path,body)=>fetch(base+path,{method:'POST',headers,body:JSON.stringify(body)});
+async function identity(role,run,{allowed=true,rpcError=null,active=true}={}){
+ apiLimiter.resetKey('127.0.0.1');const old={from:db.from,rpc:db.rpc,getUser:db.auth.getUser},calls=[];
+ db.auth.getUser=async()=>({data:{user:{id:pid}},error:null});
+ db.from=table=>{let rows=table==='profiles'?[{id:pid,auth_user_id:pid,role,active,full_name:'Test',email:'qa@example.invalid'}]:table==='customers'?[{id:oid,profile_id:pid}]:[];return{select(){return this},eq(field,value){rows=rows.filter(row=>row[field]===value);return this},maybeSingle:async()=>({data:rows[0]||null,error:null})}};
+ db.rpc=async(name,args)=>{calls.push({name,args});return{data:name==='execution_invite_scope'?allowed:name==='execution_state'||name==='execution_candidates'?(allowed?{items:[],team:[],replacements:[],delays:[],can_change:true}:null):name==='execution_invitations'?{items:[],total:0,page:args.report_page}:{id:vid,invite_id:qid},error:['execution_action','execution_invite_response'].includes(name)?rpcError:null}};
+
+ try{await run(calls)}finally{db.from=old.from;db.rpc=old.rpc;db.auth.getUser=old.getUser}
+}
+
+const request={assignment_id:vid,reason:'Different style requested',idempotency_key:qid};
+test('Execution requires authentication',async()=>assert.equal((await fetch(base+'/'+oid)).status,401));
+test('Customer requests replacement with server-bound actor and retry key',async()=>identity('CUSTOMER',async calls=>{assert.equal((await post('/'+oid+'/replacement_request',request)).status,200);assert.deepEqual(calls.at(-1),{name:'execution_action',args:{actor_id:pid,oid,operation:'replacement_request',payload:request}})}));
+test('Staff and Creator cannot impersonate Customer replacement request',async()=>{for(const role of ['STAFF','CREATOR'])await identity(role,async calls=>{assert.equal((await post('/'+oid+'/replacement_request',request)).status,403);assert.equal(calls.length,0)})});
+test('Customer and Creator cannot approve replacement or decide delay',async()=>{for(const role of ['CUSTOMER','CREATOR'])await identity(role,async calls=>{assert.equal((await post('/'+oid+'/replacement_invite',{})).status,403);assert.equal((await post('/'+oid+'/delay_apply',{})).status,403);assert.equal(calls.length,0)})});
+test('Foreign order is hidden before workflow mutation',async()=>identity('STAFF',async calls=>{assert.equal((await fetch(base+'/'+oid,{headers})).status,404);assert.equal((await post('/'+oid+'/replacement_reject',{replacement_id:vid,reason:'No'})).status,404);assert.equal(calls.some(c=>c.name==='execution_action'),false)},{allowed:false}));
+test('Only Creator owns invitation confirmation',async()=>{for(const role of ['STAFF','ADMIN','CUSTOMER'])await identity(role,async calls=>{assert.equal((await post('/invitations/'+vid+'/accept',{})).status,403);assert.equal(calls.length,0)})});
+test('Foreign invitation returns 404 and never confirms',async()=>identity('CREATOR',async calls=>{assert.equal((await post('/invitations/'+vid+'/accept',{})).status,404);assert.equal(calls.some(c=>c.name==='execution_invite_response'),false)},{allowed:false}));
+test('Creator accepts only own invitation through fixed authenticated identity',async()=>identity('CREATOR',async calls=>{assert.equal((await post('/invitations/'+vid+'/accept',{})).status,200);assert.deepEqual(calls.at(-1),{name:'execution_invite_response',args:{actor_id:pid,iid:vid,operation:'accept',reason:''}})}));
+test('Reservation limits and immutable actor fields reject overposting',async()=>identity('STAFF',async calls=>{const input={replacement_id:vid,creator_id:qid,reason:'Suitable',work_scope:'Video',deadline:'2026-12-31',response_minutes:16,idempotency_key:vid};assert.equal((await post('/'+oid+'/replacement_invite',input)).status,422);assert.equal((await post('/'+oid+'/replacement_reject',{replacement_id:vid,reason:'No',actor_id:qid})).status,422);assert.equal(calls.length,0);assert.equal((await post('/'+oid+'/replacement_invite',{...input,response_minutes:5})).status,200)}));
+test('Delay decision requires specific Creator only for Creator responsibility',async()=>identity('STAFF',async calls=>{const input={delay_id:vid,reason:'Confirmed',responsibility:'CREATOR',new_deadline:'2026-12-31'};assert.equal((await post('/'+oid+'/delay_apply',input)).status,422);assert.equal((await post('/'+oid+'/delay_apply',{...input,responsibility:'CUSTOMER',responsible_creator_id:qid})).status,422);assert.equal(calls.length,0);assert.equal((await post('/'+oid+'/delay_apply',{...input,responsible_creator_id:qid})).status,200)}));
+test('Creator can report operational delay without commercial write access',async()=>identity('CREATOR',async calls=>{assert.equal((await post('/'+oid+'/delay_report',{description:'External material late',responsibility:'EXTERNAL',idempotency_key:vid})).status,200);assert.equal(calls.at(-1).args.actor_id,pid)}));
+test('Strict pagination and search validate queries',async()=>identity('STAFF',async calls=>{assert.equal((await fetch(base+'/'+oid+'?page=0',{headers})).status,422);assert.equal((await fetch(base+'/'+oid+'/candidates?actor_id='+vid,{headers})).status,422);assert.equal(calls.length,0)}));
+test('Expired invitation conflict is not returned as success',async()=>identity('CREATOR',async()=>{const r=await post('/invitations/'+vid+'/accept',{});assert.equal(r.status,409);assert.equal((await r.json()).error.code,'INVALID_WORKFLOW')},{rpcError:{code:'P0001',message:'Lời mời đã hết hạn.'}}));
+test('Inactive Creator cannot read invitations',async()=>identity('CREATOR',async calls=>{assert.equal((await fetch(base+'/invitations',{headers})).status,403);assert.equal(calls.length,0)},{active:false}));

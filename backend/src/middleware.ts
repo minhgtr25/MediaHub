@@ -1,6 +1,7 @@
 import type { RequestHandler } from "express";
 import { db, result, ApiError } from "./db.js";
 import type { Identity } from "./models/identity.model.js";
+import { isCustomerRole, persistedRoles } from "./domain.js";
 export type { Identity } from "./models/identity.model.js";
 declare global {
   namespace Express {
@@ -24,7 +25,7 @@ export const authenticate: RequestHandler = async (req, _res, next) => {
         .eq("auth_user_id", data.user.id)
         .maybeSingle(),
     );
-    if (!p || !p.active || !["CUSTOMER","ADMIN","STAFF","BUSINESS","CREATOR","STUDENT_CREATOR"].includes(p.role))
+    if (!p || !p.active || !persistedRoles.includes(p.role))
       throw new ApiError(
         403,
         "FORBIDDEN",
@@ -37,7 +38,7 @@ export const authenticate: RequestHandler = async (req, _res, next) => {
         .eq("profile_id", p.id)
         .maybeSingle(),
     );
-    if (["CUSTOMER","BUSINESS"].includes(p.role) && !c)
+    if (isCustomerRole(p.role) && !c)
       throw new ApiError(
         403,
         "ACCOUNT_INCOMPLETE",

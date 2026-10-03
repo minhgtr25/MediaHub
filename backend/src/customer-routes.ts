@@ -13,12 +13,12 @@ async function owned(req: Request) {
   const project = await result(
     db
       .from("projects")
-      .select("id,customer_id,status")
+      .select("id,customer_id,status,order_id")
       .eq("id", uuid.parse(req.params.id))
       .maybeSingle(),
   );
   if (
-    !project ||
+    !project || project.order_id ||
     !canAccess(req.identity.role, req.identity.customer_id, project.customer_id)
   )
     throw new ApiError(404, "NOT_FOUND", "Project not found.");

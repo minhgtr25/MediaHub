@@ -1,3 +1,14 @@
+export const roles = ["CUSTOMER", "STAFF", "CREATOR", "ADMIN"] as const;
+// Existing identities keep access until their relationships are explicitly migrated.
+export const persistedRoles = [...roles, "BUSINESS", "STUDENT_CREATOR"] as const;
+export type Role = (typeof persistedRoles)[number];
+export const customerRoles: Role[] = ["CUSTOMER", "BUSINESS"];
+export const commerceRoles: Role[] = [...customerRoles, "ADMIN"];
+export const supportRoles: Role[] = [...commerceRoles, "STAFF"];
+export function isCustomerRole(role: string | null): boolean {
+  return role === "CUSTOMER" || role === "BUSINESS";
+}
+
 export const transitions: Record<string, string[]> = {
   DRAFT: ["SUBMITTED"],
   SUBMITTED: ["REVIEWING", "CANCELLED"],
@@ -15,7 +26,7 @@ export function canAccess(
   customerId: string | null,
   owner: string,
 ) {
-  return role === "ADMIN" || (["CUSTOMER", "BUSINESS"].includes(role) && customerId === owner);
+  return role === "ADMIN" || (isCustomerRole(role) && customerId !== null && customerId === owner);
 }
 export function canTransition(from: string, to: string) {
   return transitions[from]?.includes(to) ?? false;

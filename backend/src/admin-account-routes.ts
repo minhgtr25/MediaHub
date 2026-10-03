@@ -3,22 +3,24 @@ import { z } from "zod";
 import { db, result, ApiError } from "./db.js";
 import { env } from "./config/database.js";
 import { uuid } from "./validators.js";
+import { customerRoles, roles, persistedRoles } from "./domain.js";
 export const adminAccountRoutes = Router();
 adminAccountRoutes.get("/leads/:id/customer", async (req, res) => {
   const lead = await result(
     db
       .from("leads")
-      .select("email")
+      .select("email,source")
       .eq("id", uuid.parse(req.params.id))
       .maybeSingle(),
   );
   if (!lead) throw new ApiError(404, "NOT_FOUND", "Enquiry not found.");
+  if (lead.source === "CREATOR_APPLICATION") { res.json({ success: true, data: null }); return; }
   const profile = await result(
     db
       .from("profiles")
       .select("id,full_name,email")
       .eq("email", lead.email)
-      .eq("role", "CUSTOMER")
+      .in("role", customerRoles)
       .eq("active", true)
       .maybeSingle(),
   );
@@ -60,9 +62,13 @@ adminAccountRoutes.get("/users", async (req, res) => {
 });
 adminAccountRoutes.patch("/users/:id", async (req, res) => {
   const body = z
-    .object({ role: z.enum(["ADMIN", "CUSTOMER", "STAFF"]), active: z.boolean() })
+    .object({ role: z.enum(persistedRoles), active: z.boolean() })
     .strict()
     .parse(req.body);
+  if (!(roles as readonly string[]).includes(body.role)) {
+    const existing = await result(db.from("profiles").select("role").eq("id", uuid.parse(req.params.id)).maybeSingle());
+    if (!existing || existing.role !== body.role) throw new ApiError(422, "LEGACY_ROLE", "Chỉ cấp quyền Khách hàng, Staff, Creator hoặc Admin. Vai trò cũ chỉ được giữ nguyên trong giai đoạn chuyển đổi.");
+  }
   const data = await result(
     db.rpc("manage_user", {
       actor_id: req.identity.id,
@@ -127,6 +133,9 @@ adminAccountRoutes.post("/customers/invite", async (req, res) => {
 });
 adminAccountRoutes.post("/leads/:id/convert", async (req, res) => {
   const body = z.object({ customer_id: uuid }).strict().parse(req.body);
+  const lead = await result(db.from("leads").select("source").eq("id", uuid.parse(req.params.id)).maybeSingle());
+  if (!lead) throw new ApiError(404, "NOT_FOUND", "Không tìm thấy liên hệ.");
+  if (lead.source === "CREATOR_APPLICATION") throw new ApiError(409, "APPLICATION_NOT_CUSTOMER", "Hồ sơ Creator được xét hợp tác, không chuyển thành khách hàng. Chỉ cấp tài khoản sau hợp đồng công ty.");
   const data = await result(
     db.rpc("convert_lead", {
       actor_id: req.identity.id,

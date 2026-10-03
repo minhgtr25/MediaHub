@@ -1,8 +1,10 @@
+import { serviceChatRoutes } from "./service-chat-routes.js";
 import { supportRoutes } from './support-routes.js';
 import { paymentRoutes } from './payment-routes.js';
 import { quotationRoutes } from "./quotation-routes.js";
 import { seoRoutes } from "./seo-routes.js";
 import { fileType } from "./file-validation.js";
+import { profileRoutes } from "./profile-routes.js";
 import express, {
   type Request,
   type Response,
@@ -16,7 +18,7 @@ import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { db, result, ApiError } from "./db.js";
 import { authenticate, requireRole } from "./middleware.js";
-import { canAccess } from "./domain.js";
+import { canAccess, isCustomerRole, customerRoles, commerceRoles } from "./domain.js";
 import {
   uuid,
   projectSchema,
@@ -32,8 +34,19 @@ import { adminAccountRoutes } from "./admin-account-routes.js";
 import { publicContentRoutes, adminContentRoutes } from "./content-routes.js";
 import { customerRoutes, communicationRoutes } from "./customer-routes.js";
 import { publicLeadRoutes, adminLeadRoutes } from "./lead-routes.js";
+import { creatorProfileRoutes } from "./creator-profile-routes.js";
 import { creatorRoutes } from "./creator-routes.js";
 import { messagingRoutes } from "./messaging-routes.js";
+import { executionRoutes } from "./execution-routes.js";
+import { variationRoutes } from "./order-variation-routes.js";
+import { orderRoutes } from "./request-commerce-routes.js";
+import { creatorWorkspaceRoutes } from "./creator-team-routes.js";
+import { creatorOnboardingRoutes } from "./creator-onboarding-routes.js";
+import { financeRoutes } from "./finance-routes.js";
+import { companyPortfolioRoutes } from "./company-portfolio-routes.js";
+import { orderFeedbackRoutes, caseStudyAdminRoutes, publicFeedbackRoutes } from "./order-feedback-routes.js";
+import { deliveryRoutes } from "./delivery-routes.js";
+import { requestRoutes, publicPackageRoutes, adminPackageRoutes } from "./request-routes.js";
 export const app = express();
 export default app;
 app.set("trust proxy", env.TRUST_PROXY_HOPS);
@@ -45,11 +58,7 @@ app.use("/api/public", (req, res, next) => {
   if (req.method === "GET") res.set("Cache-Control", "public, max-age=60");
   next();
 });
-app.use(
-  helmet(),
-  cors({ origin: env.CORS_ORIGIN }),
-  express.json({ limit: "1mb" }),
-  rateLimit({
+export const apiLimiter = rateLimit({
     windowMs: 60000,
     limit: 180,
     standardHeaders: "draft-8",
@@ -58,7 +67,12 @@ app.use(
       success: false,
       error: { code: "RATE_LIMIT", message: "Vui lòng thử lại sau." },
     },
-  }),
+  });
+app.use(
+  helmet(),
+  cors({ origin: env.CORS_ORIGIN }),
+  express.json({ limit: "1mb" }),
+  apiLimiter,
 );
 app.use((req, res, next) => {
   const start = Date.now();
@@ -121,7 +135,7 @@ async function owned(req: Request) {
     db.from("projects").select("*").eq("id", id).maybeSingle(),
   );
   if (
-    !p ||
+    !p || p.order_id ||
     !canAccess(req.identity.role, req.identity.customer_id, p.customer_id)
   )
     throw new ApiError(404, "PROJECT_NOT_FOUND", "Không tìm thấy dự án.");
@@ -199,17 +213,16 @@ app.get("/api/public/testimonials", async (req, res) =>
 );
 app.get("/api/public/home", async (_req, res) => {
   const client = db as any;
-  const [hero, services, projects, creators, testimonials, partners, creatorCount, projectCount] = await Promise.all([
+  const [hero, services, projects, creators, testimonials, partners, projectCount] = await Promise.all([
     client.from("website_settings").select("title,content,image").eq("key", "hero").eq("published", true).maybeSingle(),
     client.from("services").select("id,name,slug,description,category,thumbnail_url,starting_price,features").eq("active", true).order("featured", { ascending: false }).order("display_order").limit(6),
     client.from("portfolio").select("id,slug,title,client,description,category,image_url,year").eq("published", true).order("featured", { ascending: false }).order("created_at", { ascending: false }).limit(4),
-    client.from("creator_profiles").select("id,slug,display_name,title,avatar_url,location,rating,completed_projects,verified,creator_skills(skills(id,name,slug))").order("featured", { ascending: false }).order("rating", { ascending: false, nullsFirst: false }).limit(4),
+    client.rpc("public_creator_search",{filters:{page:1,limit:4,sort:"recommended"}}),
     client.from("testimonials").select("id,content,published_at").eq("status", "APPROVED").order("published_at", { ascending: false }).limit(1),
-    client.from("partners").select("id,name,logo,website").eq("active", true).order("display_order").limit(8),
-    client.from("creator_profiles").select("id", { count: "exact", head: true }),
-    client.from("portfolio").select("id", { count: "exact", head: true }).eq("published", true),
+    client.from("partners").select("id,name,logo,website,description,industry").eq("active", true).order("display_order").limit(8),
+    client.rpc("public_company_portfolio", {portfolio_page:1,portfolio_limit:1,portfolio_search:"",portfolio_category:"",portfolio_kind:"ALL"}),
   ]);
-  const sources = { hero, services, projects, creators, testimonials, partners, creatorCount, projectCount };
+  const sources = { hero, services, projects, creators, testimonials, partners, projectCount };
   for (const [name, response] of Object.entries(sources)) {
     if (response.error) console.error("Homepage data source failed", name, response.error.code ?? "UNKNOWN");
   }
@@ -217,14 +230,12 @@ app.get("/api/public/home", async (_req, res) => {
     hero: hero.data ?? null,
     services: services.data ?? [],
     projects: projects.data ?? [],
-    creators: creators.data ?? [],
+    creators: creators.data?.items ?? [],
     testimonials: testimonials.data ?? [],
     partners: partners.data ?? [],
     stats: {
-      creators: creatorCount.count ?? creators.data?.length ?? 0,
-      projects: projectCount.count ?? projects.data?.length ?? 0,
-      satisfaction: 98,
-      experience: 5,
+      creators: creators.data?.total ?? 0,
+      projects: projectCount.data?.total ?? 0,
     },
   });
 });
@@ -249,7 +260,7 @@ app.get("/api/public/portfolio/:id", async (req, res) => {
   if (!p) throw new ApiError(404, "NOT_FOUND", "Không tìm thấy dự án.");
   send(res, p);
 });
-app.use("/api/public", publicLeadRoutes, publicContentRoutes, creatorRoutes, seoRoutes);
+app.use("/api/public", publicPackageRoutes, publicLeadRoutes, publicContentRoutes, creatorRoutes, publicFeedbackRoutes, companyPortfolioRoutes, seoRoutes);
 app.get("/api/public/services/:slug", async (req, res) => {
   const slug = z
     .string()
@@ -269,16 +280,36 @@ app.get("/api/public/services/:slug", async (req, res) => {
   if (!service) throw new ApiError(404, "NOT_FOUND", "Service not found.");
   send(res, service);
 });
+app.get("/api/public/partners/:id", async (req, res) => {
+  const partner = await result(db.from("partners").select("id,name,logo,website,description,industry").eq("id", uuid.parse(req.params.id)).eq("active", true).maybeSingle());
+  if (!partner) throw new ApiError(404, "NOT_FOUND", "Đối tác chưa được công bố.");
+  send(res, partner);
+});
 app.use("/api", authenticate);
+app.use("/api/auth", profileRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/messages', messagingRoutes);
+app.use('/api/requests', requestRoutes);
+app.use('/api/service-chat', serviceChatRoutes);
+app.use('/api/creator/profile', creatorProfileRoutes);
+app.use('/api/creator', creatorWorkspaceRoutes);
+app.use('/api/admin/creators', creatorOnboardingRoutes);
+app.use('/api/finance', financeRoutes);
+app.use('/api/delivery', deliveryRoutes);
+app.use('/api/order-feedback', orderFeedbackRoutes);
+app.use('/api/admin/case-studies', caseStudyAdminRoutes);
+app.use('/api/order-variations', variationRoutes);
+app.use('/api/execution', executionRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/admin/service-packages', adminPackageRoutes);
 // Staff have a dedicated support surface. Existing admin/customer APIs stay restricted.
 app.use('/api',(req,_res,next)=>{
  if(req.identity.role==='STAFF' && !/^\/(auth\/me|notifications)(\/|$)/.test(req.path)) return next(new ApiError(403,'FORBIDDEN','Chỉ có quyền truy cập khu vực hỗ trợ.'));
  next();
 });
-app.use("/api/customer", requireRole(["CUSTOMER", "BUSINESS"]), customerRoutes);
+app.use("/api/customer", requireRole(customerRoles), customerRoutes);
+app.use("/api/projects", requireRole(commerceRoles));
 app.use("/api/projects", communicationRoutes);
 app.get("/api/auth/me", (req, res) => send(res, req.identity));
 app.patch("/api/auth/me", async (req, res) => {
@@ -304,19 +335,28 @@ app.patch("/api/auth/me", async (req, res) => {
     ),
   );
 });
-app.get("/api/notifications", async (req, res) =>
-  send(
-    res,
-    await list(
-      req,
-      db
-        .from("notifications")
-        .select("*", { count: "exact" })
-        .eq("user_id", req.identity.id)
-        .order("created_at", { ascending: false }),
-    ),
-  ),
-);
+app.get("/api/notifications", async (req, res) => {
+  const status = z.enum(['ALL','READ','UNREAD']).default('ALL').parse(req.query.status);
+  const search = z.string().max(100).default('').parse(req.query.search).trim();
+  let query = db.from('notifications').select('*', {count:'exact'}).eq('user_id', req.identity.id);
+  if(status==='READ') query=query.not('read_at','is',null);
+  if(status==='UNREAD') query=query.is('read_at',null);
+  if(search) {
+    const pattern = '%' + search.replace(/[\\%_]/g, '\\$&') + '%';
+    const quoted = '"' + pattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+    query=query.or(`title.ilike.${quoted},message.ilike.${quoted}`);
+  }
+  const page=z.coerce.number().int().min(1).default(1).parse(req.query.page);
+  const limit=z.coerce.number().int().min(1).max(100).default(20).parse(req.query.limit);
+  const {data,error,count}=await query.order('created_at',{ascending:false}).order('id',{ascending:false}).range((page-1)*limit,page*limit-1);
+  if(error) throw new ApiError(500,'DATABASE_ERROR','Không thể tải thông báo.');
+  send(res,{items:data,total:count,page,limit});
+});
+app.patch('/api/notifications/read-all', async (req,res) => {
+  z.object({}).strict().parse(req.body);
+  await result(db.from('notifications').update({read_at:new Date().toISOString()}).eq('user_id',req.identity.id).is('read_at',null));
+  send(res, {success:true});
+});
 app.patch("/api/notifications/:id", async (req, res) => {
   z.object({}).strict().parse(req.body);
   send(
@@ -346,8 +386,9 @@ async function projectList(req: Request) {
       "*,customers(company_name,profiles(full_name,email)),project_services!inner(service_id)",
       { count: "exact" },
     )
+    .is("order_id", null)
     .order("created_at", { ascending: false });
-  if (req.identity.role === "CUSTOMER")
+  if (isCustomerRole(req.identity.role))
     q = q.eq("customer_id", req.identity.customer_id!);
   if (f.status) q = q.eq("status", f.status);
   if (f.service_id) q = q.eq("project_services.service_id", f.service_id);
@@ -394,12 +435,12 @@ app.get("/api/projects/:id", async (req, res) => {
           .from("quotations")
           .select("*,quotation_items(*)")
           .eq("project_id", p.id);
-        if (req.identity.role === "CUSTOMER") q = q.neq("status", "DRAFT");
+        if (isCustomerRole(req.identity.role)) q = q.neq("status", "DRAFT");
         return result(q);
       }
       if (t === "invoices") {
         let q = db.from("invoices").select("*").eq("project_id", p.id);
-        if (req.identity.role === "CUSTOMER") q = q.neq("status", "DRAFT");
+        if (isCustomerRole(req.identity.role)) q = q.neq("status", "DRAFT");
         return result(q);
       }
       return result(db.from(t).select("*").eq("project_id", p.id));
@@ -496,6 +537,7 @@ app.get("/api/admin/quotations", async (req, res) =>
       db
         .from("quotations")
         .select("*,projects(title),quotation_items(*)", { count: "exact" })
+        .not("project_id", "is", null)
         .order("created_at", { ascending: false }),
     ),
   ),
@@ -513,6 +555,7 @@ app.get("/api/admin/invoices/:id", async (req, res) => {
 });
 
 app.patch("/api/admin/projects/:id", async (req, res) => {
+  await owned(req);
   const body = z
     .object({
       title: z.string().trim().min(1).max(200),
@@ -577,7 +620,7 @@ app.get("/api/admin/customers", async (req, res) =>
       db
         .from("customers")
         .select("*,profiles!inner(full_name,email,role)", { count: "exact" })
-        .eq("profiles.role", "CUSTOMER")
+        .in("profiles.role", customerRoles)
         .order("created_at", { ascending: false }),
       "company_name",
     ),
