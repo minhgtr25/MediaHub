@@ -2,6 +2,8 @@ import { config } from "dotenv";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
+const optionalSetting = z.string().optional().transform(value => value?.trim() || undefined);
+
 export const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
@@ -11,6 +13,13 @@ export const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   SITE_URL: z.url().optional(),
   AUTH_REDIRECT_URL: z.url().optional(),
+  SMTP_HOST: optionalSetting,
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).optional(),
+  SMTP_SECURE: z.enum(["true", "false"]).optional(),
+  SMTP_USER: optionalSetting,
+  SMTP_PASS: z.string().optional().transform(value => value || undefined),
+  SMTP_FROM: z.preprocess(value => value === "" ? undefined : value, z.email().optional()),
+  INTAKE_NOTIFICATION_EMAIL: z.preprocess(value => value === "" ? undefined : value, z.email().optional()),
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
   CORS_ORIGIN: z
     .string()
@@ -22,6 +31,11 @@ export const envSchema = z.object({
         .filter(Boolean),
     )
     .pipe(z.array(z.url()).min(1)),
+}).superRefine((value, context) => {
+  const smtpFields = [value.SMTP_HOST, value.SMTP_USER, value.SMTP_PASS, value.SMTP_FROM, value.INTAKE_NOTIFICATION_EMAIL];
+  if (smtpFields.some(Boolean) && !smtpFields.every(Boolean)) {
+    context.addIssue({ code: "custom", path: ["SMTP_HOST"], message: "SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_FROM and INTAKE_NOTIFICATION_EMAIL must be configured together." });
+  }
 });
 export type Environment = z.infer<typeof envSchema>;
 export function loadEnvironment(): Environment {

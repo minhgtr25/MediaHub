@@ -9,6 +9,7 @@ import { fileType } from "./file-validation.js";
 import { authenticate, requireRole } from "./middleware.js";
 import { customerRoles } from "./domain.js";
 import { businessContactSchema, creatorApplicationSchema, intakeSources } from "./intake-validators.js";
+import { notifyIntake } from "./intake-email.js";
 
 export const leadSchema = z
   .object({
@@ -125,6 +126,12 @@ publicLeadRoutes.post(
       if (attachment_path)
         await db.storage.from("lead-attachments").remove([attachment_path]);
       throw error;
+    }
+    try {
+      const notified = await notifyIntake({ ...body, id });
+      if (!notified) console.warn(`[intake-email] SMTP is not configured; saved intake ${id} remains available in Admin.`);
+    } catch (error) {
+      console.error(`[intake-email] Could not notify Admin for saved intake ${id}:`, error instanceof Error ? error.message : "SMTP error");
     }
     res
       .status(201)
