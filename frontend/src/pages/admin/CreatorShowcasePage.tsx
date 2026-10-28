@@ -176,7 +176,7 @@ function validateShowcaseForm(data: FormData, locations: string[]) {
     );
   if (!locations.includes(location))
     throw new Error(
-      "Hãy chọn một tỉnh, thành phố hoặc Toàn quốc / Remote từ danh sách.",
+      "Hãy chọn một tỉnh, thành phố hoặc Remote toàn quốc từ danh sách.",
     );
   const priceText = get("price_from");
   if (
