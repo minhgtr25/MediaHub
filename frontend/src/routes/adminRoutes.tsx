@@ -98,6 +98,9 @@ export const adminRoutes = (
         <Route path="portfolio" element={<AdminPortfolio />} />
         <Route path="portfolio/new" element={<AdminPortfolio />} />
         <Route path="portfolio/:id/edit" element={<AdminPortfolio />} />
+        <Route path="website-projects" element={<AdminPortfolio />} />
+        <Route path="website-projects/new" element={<AdminPortfolio />} />
+        <Route path="website-projects/:id/edit" element={<AdminPortfolio />} />
         <Route path="testimonials" element={<AdminTestimonials />} />
         <Route path="profile" element={<Profile />} />
         <Route path="notifications" element={<Notifications />} />

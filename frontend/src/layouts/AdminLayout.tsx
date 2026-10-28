@@ -27,6 +27,9 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
         <SideLink to="/admin/dashboard" icon={<LayoutDashboard />}>
           Tổng quan
         </SideLink>
+        <SideLink to="/admin/website-projects" icon={<BriefcaseBusiness />}>
+          Quản lý hồ sơ dự án
+        </SideLink>
         <NavGroup
           label="Vận hành"
           active={["requests", "orders", "projects", "files"].some((item) =>
@@ -127,22 +130,15 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
         </NavGroup>
         <NavGroup
           label="Nội dung website"
-          active={[
-            "settings",
-            "process",
-            "portfolio",
-            "testimonials",
-            "case-studies",
-          ].some((item) => location.pathname.startsWith(`/admin/${item}`))}
+          active={["settings", "process", "testimonials", "case-studies"].some(
+            (item) => location.pathname.startsWith(`/admin/${item}`),
+          )}
         >
           <SideLink to="/admin/settings" icon={<Settings />}>
             Nội dung website
           </SideLink>
           <SideLink to="/admin/process" icon={<FolderKanban />}>
             Quy trình
-          </SideLink>
-          <SideLink to="/admin/portfolio" icon={<BriefcaseBusiness />}>
-            Hồ sơ dự án
           </SideLink>
           <SideLink to="/admin/testimonials" icon={<Users />}>
             Đánh giá
