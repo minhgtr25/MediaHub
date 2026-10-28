@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { youtubeVideoId } from "./utils/youtube.js";
 const text = z.string().trim().min(1).max(5000);
 const money = z.number().min(0).max(1e12);
 export const uuid = z.string().uuid();
@@ -105,6 +106,14 @@ export const resources = {
     description: text,
     category: text,
     image_url: url.default(""),
+    video_url: z
+      .string()
+      .trim()
+      .max(2048)
+      .refine((value) => value === "" || youtubeVideoId(value) !== null, {
+        message: "Nhập liên kết YouTube video hoặc Shorts hợp lệ.",
+      })
+      .default(""),
     published: z.boolean().default(false),
     featured: z.boolean().default(false),
     slug: z

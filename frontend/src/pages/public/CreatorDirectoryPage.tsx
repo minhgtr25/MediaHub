@@ -254,23 +254,34 @@ function CreatorCard({ creator: c }: { creator: PublicCreator }) {
             {c.location}
           </small>
         </div>
-        <span className="rating">
-          <Star size={13} /> {c.rating ?? "Mới"}
-          <small>{c.review_count} đánh giá đã xác minh</small>
-        </span>
+        {!c.is_showcase && (
+          <span className="rating">
+            <Star size={13} /> {c.rating ?? "Mới"}
+            <small>{c.review_count} đánh giá đã xác minh</small>
+          </span>
+        )}
       </header>
-      <p className="muted">
-        {
-          (
-            {
-              AVAILABLE: "Sẵn sàng nhận việc",
-              LIMITED: "Cần trao đổi lịch",
-              BUSY: "Đang nhận việc hoặc giữ chỗ",
-              UNAVAILABLE: "Tạm ngừng nhận việc mới",
-            } as Record<string, string>
-          )[c.availability]
-        }
-      </p>
+      {c.is_showcase && (
+        <p className="showcase-label">
+          {c.is_demo
+            ? "DỮ LIỆU MINH HỌA · HỒ SƠ GIỚI THIỆU"
+            : "HỒ SƠ GIỚI THIỆU DO ADMIN QUẢN LÝ"}
+        </p>
+      )}
+      {!c.is_showcase && (
+        <p className="muted">
+          {
+            (
+              {
+                AVAILABLE: "Sẵn sàng nhận việc",
+                LIMITED: "Cần trao đổi lịch",
+                BUSY: "Đang nhận việc hoặc giữ chỗ",
+                UNAVAILABLE: "Tạm ngừng nhận việc mới",
+              } as Record<string, string>
+            )[c.availability]
+          }
+        </p>
+      )}
       <div className="skill-chips">
         {c.creator_skills.slice(0, 5).map((x) => (
           <span key={x.skills.id}>{x.skills.name}</span>
@@ -300,18 +311,22 @@ function CreatorCard({ creator: c }: { creator: PublicCreator }) {
       {!c.creator_portfolio.length && (
         <p className="muted">Chưa có sản phẩm portfolio công khai.</p>
       )}
-      <p className="muted">
-        {c.completed_projects} đơn đã hoàn thành trên MediaHub
-      </p>
-      <p className="creator-assurance">
-        <ShieldCheck size={16} /> Staff tư vấn lịch làm việc và phạm vi trước
-        khi chốt dịch vụ.
-      </p>
+      {!c.is_showcase && (
+        <p className="muted">
+          {c.completed_projects} đơn đã hoàn thành trên MediaHub
+        </p>
+      )}
+      {!c.is_showcase && (
+        <p className="creator-assurance">
+          <ShieldCheck size={16} /> Staff tư vấn lịch làm việc và phạm vi trước
+          khi chốt dịch vụ.
+        </p>
+      )}
       <footer>
         <Link className="btn btn-ghost" to={`/creators/${c.slug}`}>
           <Briefcase size={15} /> Xem Portfolio
         </Link>
-        <MessageCreator creator={c} compact />
+        {!c.is_showcase && <MessageCreator creator={c} compact />}
       </footer>
     </article>
   );

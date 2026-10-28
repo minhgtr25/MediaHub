@@ -10,6 +10,14 @@ export type PlatformFunctions = Database["public"]["Functions"] & {
     Args: { actor_id: string; payload: import("./database.types.js").Json };
     Returns: import("./database.types.js").Json;
   };
+  admin_manage_creator_showcase: {
+    Args: {
+      actor_id: string;
+      operation: string;
+      payload: import("./database.types.js").Json;
+    };
+    Returns: import("./database.types.js").Json;
+  };
   public_company_portfolio: {
     Args: {
       portfolio_page: number;

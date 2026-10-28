@@ -345,7 +345,12 @@ export type PlatformTables = Omit<
     "conversation_id" | "sender_id" | "content"
   >;
   creator_profiles: Table<
-    ManagedCreator & { profile_id: string | null; is_demo: boolean },
+    ManagedCreator & {
+      profile_id: string | null;
+      is_demo: boolean;
+      admin_managed: boolean;
+      published: boolean;
+    },
     "display_name" | "slug" | "title"
   >;
   support_tickets: Table<SupportTicket, "customer_id" | "subject">;

@@ -6,6 +6,7 @@ import {
   PaymentSettingsPage,
   CaseStudyReviewPage,
   CreatorOnboardingPage,
+  CreatorShowcasePage,
   RequestList,
   RequestWorkspace,
   FinanceReportPage,
@@ -58,6 +59,7 @@ export const adminRoutes = (
         <Route path="files" element={<AdminFiles />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="creators" element={<CreatorOnboardingPage />} />
+        <Route path="creator-showcase" element={<CreatorShowcasePage />} />
         <Route path="case-studies" element={<CaseStudyReviewPage />} />
         <Route path="invoices" element={<CustomerInvoices admin />} />
         <Route path="invoices/:id" element={<CustomerInvoice admin />} />

@@ -12,6 +12,8 @@ export type PublicCreator = {
   completed_projects: number;
   verified: boolean;
   featured: boolean;
+  is_showcase: boolean;
+  is_demo: boolean;
   availability: string;
   creator_skills: { skills: CreatorOption }[];
   creator_portfolio: { id: string; title: string; thumbnail_url?: string }[];

@@ -1854,3 +1854,7 @@
   object-fit: cover;
   border-radius: 8px;
 }
+
+.company-project-image {
+  position: relative;
+}

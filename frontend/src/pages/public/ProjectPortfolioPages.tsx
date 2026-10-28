@@ -265,6 +265,7 @@ type PublicProject = {
   result?: string;
   deliverables?: string[];
   gallery?: string[];
+  video_embed_url?: string | null;
 };
 export function ProjectDetail() {
   const { id } = useParams();
@@ -304,6 +305,18 @@ export function ProjectDetail() {
                   Hồ sơ sản phẩm MediaHub · {p.category || "Dự án truyền thông"}
                 </figcaption>
               </figure>
+            )}
+            {p.video_embed_url && (
+              <section className="project-video-embed" aria-label="Video dự án">
+                <iframe
+                  src={p.video_embed_url}
+                  title={`Video dự án ${p.title}`}
+                  loading="lazy"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allowFullScreen
+                />
+              </section>
             )}
             <div className="project-case-layout">
               <article className="project-case-story">

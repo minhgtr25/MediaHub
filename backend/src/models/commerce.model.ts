@@ -160,6 +160,10 @@ export type ManagedCreator = {
   title: string;
   avatar_url: string | null;
   availability: string;
+  admin_managed?: boolean;
+  published?: boolean;
+  is_showcase?: boolean;
+  is_demo?: boolean;
 };
 export type CreatorProposal = {
   id: string;
@@ -314,6 +318,7 @@ type CompanyPortfolioBase = {
   category: string | null;
   year: number | null;
   updated_at: string;
+  video_url: string | null;
 };
 export type CompanyPortfolioItem = CompanyPortfolioBase &
   (

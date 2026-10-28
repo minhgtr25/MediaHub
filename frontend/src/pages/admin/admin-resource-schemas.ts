@@ -102,6 +102,18 @@ export const schemas: Record<
       { name: "description", label: "Mô tả", type: "textarea" },
       { name: "category", label: "Danh mục" },
       { name: "image_url", label: "URL ảnh", type: "url", optional: true },
+      {
+        name: "video_url",
+        label: "YouTube / Shorts URL",
+        type: "url",
+        optional: true,
+      },
+      {
+        name: "video_url",
+        label: "YouTube / Shorts URL",
+        type: "url",
+        optional: true,
+      },
       { name: "published", label: "Công khai", type: "checkbox" },
       { name: "featured", label: "Dự án nổi bật", type: "checkbox" },
       { name: "slug", label: "Đường dẫn" },

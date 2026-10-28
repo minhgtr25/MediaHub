@@ -40,6 +40,7 @@ publicServiceRoutes.get("/creators/options", async (req, res) => {
   let query = db
     .from("creator_profiles")
     .select("id,display_name,slug,title,availability")
+    .eq("admin_managed", false)
     .neq("availability", "UNAVAILABLE")
     .order("display_name")
     .limit(24);

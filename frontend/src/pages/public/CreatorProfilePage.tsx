@@ -36,6 +36,13 @@ export function CreatorProfile() {
         {c && (
           <>
             <section className="creator-profile-hero">
+              {c.is_showcase && (
+                <p className="showcase-label">
+                  {c.is_demo
+                    ? "DỮ LIỆU MINH HỌA · HỒ SƠ GIỚI THIỆU"
+                    : "HỒ SƠ GIỚI THIỆU DO ADMIN QUẢN LÝ · KHÔNG NHẬN YÊU CẦU TRỰC TIẾP"}
+                </p>
+              )}
               <div className="creator-cover">
                 {(c.cover_url || c.creator_portfolio[0]?.thumbnail_url) && (
                   <img
@@ -50,19 +57,21 @@ export function CreatorProfile() {
                   alt={`Ảnh đại diện ${c.display_name}`}
                 />
                 <div>
-                  <span className="creator-availability">
-                    <i />
-                    {
-                      (
-                        {
-                          AVAILABLE: "Sẵn sàng nhận dự án",
-                          LIMITED: "Cần trao đổi lịch",
-                          BUSY: "Đang nhận việc hoặc giữ chỗ",
-                          UNAVAILABLE: "Tạm ngừng nhận việc mới",
-                        } as Record<string, string>
-                      )[c.availability]
-                    }
-                  </span>
+                  {!c.is_showcase && (
+                    <span className="creator-availability">
+                      <i />
+                      {
+                        (
+                          {
+                            AVAILABLE: "Sẵn sàng nhận dự án",
+                            LIMITED: "Cần trao đổi lịch",
+                            BUSY: "Đang nhận việc hoặc giữ chỗ",
+                            UNAVAILABLE: "Tạm ngừng nhận việc mới",
+                          } as Record<string, string>
+                        )[c.availability]
+                      }
+                    </span>
+                  )}
                   <h1>
                     {c.display_name} {c.verified && <BadgeCheck />}
                   </h1>
@@ -71,43 +80,49 @@ export function CreatorProfile() {
                     <MapPin /> {c.location || "Làm việc từ xa"}
                   </small>
                 </div>
-                <div className="creator-profile-action">
-                  <span>Chi phí tham khảo từ</span>
-                  <strong>
-                    {c.price_from ? money(c.price_from) : "Liên hệ"}
-                  </strong>
-                  <MessageCreator creator={c} />
-                  <Link
-                    className="btn btn-ghost"
-                    to={`/request-project?creator=${c.id}`}
-                  >
-                    Gửi yêu cầu với creator này
-                  </Link>
+                {!c.is_showcase && (
+                  <div className="creator-profile-action">
+                    <span>Chi phí tham khảo từ</span>
+                    <strong>
+                      {c.price_from ? money(c.price_from) : "Liên hệ"}
+                    </strong>
+                    <MessageCreator creator={c} />
+                    <Link
+                      className="btn btn-ghost"
+                      to={`/request-project?creator=${c.id}`}
+                    >
+                      Gửi yêu cầu với creator này
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </section>
+            {!c.is_showcase && (
+              <section className="creator-profile-stats">
+                <div>
+                  <Star />
+                  <strong>{c.rating ?? "Mới"}</strong>
+                  <span>{c.review_count} đánh giá đã xác minh</span>
                 </div>
-              </div>
-            </section>
-            <section className="creator-profile-stats">
-              <div>
-                <Star />
-                <strong>{c.rating ?? "Mới"}</strong>
-                <span>{c.review_count} đánh giá đã xác minh</span>
-              </div>
-              <div>
-                <Briefcase />
-                <strong>{c.completed_projects}</strong>
-                <span>Đơn hoàn thành trên MediaHub</span>
-              </div>
-              <div>
-                <CheckCircle2 />
-                <strong>{c.verified ? "Đã xác minh" : "Xem portfolio"}</strong>
-                <span>Hồ sơ năng lực</span>
-              </div>
-              <div>
-                <Clock3 />
-                <strong>Staff tư vấn</strong>
-                <span>Xác nhận lịch trước khi chốt</span>
-              </div>
-            </section>
+                <div>
+                  <Briefcase />
+                  <strong>{c.completed_projects}</strong>
+                  <span>Đơn hoàn thành trên MediaHub</span>
+                </div>
+                <div>
+                  <CheckCircle2 />
+                  <strong>
+                    {c.verified ? "Đã xác minh" : "Xem portfolio"}
+                  </strong>
+                  <span>Hồ sơ năng lực</span>
+                </div>
+                <div>
+                  <Clock3 />
+                  <strong>Staff tư vấn</strong>
+                  <span>Xác nhận lịch trước khi chốt</span>
+                </div>
+              </section>
+            )}
             <div className="creator-profile-grid">
               <div className="creator-profile-main">
                 <section>
@@ -167,7 +182,9 @@ export function CreatorProfile() {
                     </div>
                   )}
                 </section>
-                <VerifiedCreatorReviews key={c.slug} slug={c.slug} />
+                {!c.is_showcase && (
+                  <VerifiedCreatorReviews key={c.slug} slug={c.slug} />
+                )}
               </div>
               <aside className="creator-profile-side">
                 <section>

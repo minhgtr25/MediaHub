@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db, result, ApiError } from "./db.js";
 import type { CompanyPortfolioItem } from "./models/commerce.model.js";
 import { uuid } from "./validators.js";
+import { youtubeEmbedUrl } from "./utils/youtube.js";
 
 export const companyPortfolioRoutes = Router();
 const filters = z
@@ -34,6 +35,7 @@ async function project(item: CompanyPortfolioItem) {
     year: item.year,
     updated_at: item.updated_at,
     image_url: image,
+    video_embed_url: youtubeEmbedUrl(item.video_url),
     href:
       item.kind === "EXCERPT"
         ? `/projects/case/${item.public_id}`

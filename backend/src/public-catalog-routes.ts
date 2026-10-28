@@ -4,6 +4,7 @@ import { ApiError, db, result } from "./db.js";
 import { uuid } from "./validators.js";
 import { list } from "./utils/pagination.js";
 import { send } from "./utils/response.js";
+import { youtubeEmbedUrl } from "./utils/youtube.js";
 
 export const publicCatalogRoutes = Router();
 const catalogFilters = z.object({
@@ -30,7 +31,7 @@ publicCatalogRoutes.get("/portfolio", async (req, res) => {
   let query = db
     .from("portfolio")
     .select(
-      "id,slug,title,client,description,category,image_url,featured,created_at,year",
+      "id,slug,title,client,description,category,image_url,video_url,featured,created_at,year",
       { count: "exact" },
     )
     .eq("published", true)
@@ -39,7 +40,14 @@ publicCatalogRoutes.get("/portfolio", async (req, res) => {
     .order("created_at", { ascending: false });
   if (f.category) query = query.eq("category", f.category);
   if (f.featured) query = query.eq("featured", f.featured === "true");
-  send(res, await list(req, query, "title"));
+  const data = await list(req, query, "title");
+  send(res, {
+    ...data,
+    items: (data.items ?? []).map((item) => ({
+      ...item,
+      video_embed_url: youtubeEmbedUrl(item.video_url),
+    })),
+  });
 });
 publicCatalogRoutes.get("/testimonials", async (req, res) =>
   send(
@@ -81,7 +89,9 @@ publicCatalogRoutes.get("/home", async (_req, res) => {
       .limit(6),
     db
       .from("portfolio")
-      .select("id,slug,title,client,description,category,image_url,year")
+      .select(
+        "id,slug,title,client,description,category,image_url,video_url,year",
+      )
       .eq("published", true)
       .eq("is_demo", false)
       .order("featured", { ascending: false })
@@ -145,7 +155,7 @@ publicCatalogRoutes.get("/portfolio/:id", async (req, res) => {
     db
       .from("portfolio")
       .select(
-        "id,slug,title,client,description,category,image_url,industry,year,duration,challenge,solution,result,gallery,deliverables,seo_title,seo_description",
+        "id,slug,title,client,description,category,image_url,video_url,industry,year,duration,challenge,solution,result,gallery,deliverables,seo_title,seo_description",
       )
       .eq(
         uuid.safeParse(req.params.id).success ? "id" : "slug",
@@ -160,7 +170,7 @@ publicCatalogRoutes.get("/portfolio/:id", async (req, res) => {
       .maybeSingle(),
   );
   if (!p) throw new ApiError(404, "NOT_FOUND", "Không tìm thấy dự án.");
-  send(res, p);
+  send(res, { ...p, video_embed_url: youtubeEmbedUrl(p.video_url) });
 });
 publicCatalogRoutes.get("/services/:slug", async (req, res) => {
   const slug = z

@@ -14,6 +14,7 @@ export type CompanyProject = {
   year: number | null;
   updated_at: string;
   image_url: string | null;
+  video_embed_url?: string | null;
   href: string;
 };
 export function CompanyPortfolio({ compact = false }: { compact?: boolean }) {
@@ -111,6 +112,9 @@ export function CompanyPortfolio({ compact = false }: { compact?: boolean }) {
                   />
                 ) : (
                   <span className="muted">Ảnh hồ sơ đang được cập nhật</span>
+                )}
+                {p.video_embed_url && (
+                  <span className="project-video-badge">▶ Video</span>
                 )}
               </div>
               <div className="company-project-content">

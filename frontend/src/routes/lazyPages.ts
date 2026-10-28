@@ -317,3 +317,8 @@ export const ErrorPage = lazy(() =>
     default: module.ErrorPage,
   })),
 );
+export const CreatorShowcasePage = lazy(() =>
+  import("../pages/admin/CreatorShowcasePage").then((m) => ({
+    default: m.CreatorShowcasePage,
+  })),
+);

@@ -172,6 +172,7 @@ export type PortfolioExtra = {
   deliverables: string[];
   seo_title: string;
   seo_description: string;
+  video_url: string;
 };
 export type Extended<
   T extends { Row: object; Insert: object; Update: object },

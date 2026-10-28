@@ -100,6 +100,7 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
           active={[
             "employees",
             "creators",
+            "creator-showcase",
             "partners",
             "services",
             "service-packages",
@@ -110,6 +111,9 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
           </SideLink>
           <SideLink to="/admin/creators" icon={<Users />}>
             Creator &amp; cấp tài khoản
+          </SideLink>
+          <SideLink to="/admin/creator-showcase" icon={<Users />}>
+            Hồ sơ Creator
           </SideLink>
           <SideLink to="/admin/partners" icon={<Users />}>
             Đối tác
