@@ -1,5 +1,10 @@
-import type { Project } from './projects.model.js';
-export type Paginated<T> = { items: T[]; total: number; page: number; limit: number };
+import type { Project } from "./projects.model.js";
+export type Paginated<T> = {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+};
 export type DashboardReport = {
   total_projects: number;
   active_projects: number;
@@ -12,7 +17,7 @@ export type DashboardReport = {
   average_project_value: number;
   pending_payment: number;
   paid_invoices: number;
-  by_status: { status: Project['status']; count: number }[];
+  by_status: { status: Project["status"]; count: number }[];
   by_month: { label: string; value: number }[];
   by_service: { label: string; value: number }[];
 };

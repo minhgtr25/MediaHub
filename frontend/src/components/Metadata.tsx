@@ -1,19 +1,34 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 
-export function Metadata({ title, description }: { title: string; description?: string }) {
+export function Metadata({
+  title,
+  description,
+}: {
+  title: string;
+  description?: string;
+}) {
   useEffect(() => {
     document.title = `${title} | MediaHub`;
     const values: Record<string, string> = {
-      description: description ?? "MediaHub quản lý dịch vụ truyền thông từ brief đến bàn giao.",
+      description:
+        description ??
+        "MediaHub quản lý dịch vụ truyền thông từ brief đến bàn giao.",
       "og:title": `${title} | MediaHub`,
       "og:description": description ?? "Dịch vụ truyền thông MediaHub",
       "og:url": window.location.origin + window.location.pathname,
-      robots: window.location.pathname.startsWith("/admin") || window.location.pathname.startsWith("/customer") || window.location.pathname.startsWith("/staff") ? "noindex,nofollow" : "index,follow",
+      robots:
+        window.location.pathname.startsWith("/admin") ||
+        window.location.pathname.startsWith("/customer") ||
+        window.location.pathname.startsWith("/staff")
+          ? "noindex,nofollow"
+          : "index,follow",
     };
     for (const [key, content] of Object.entries(values)) {
       const attribute = key.startsWith("og:") ? "property" : "name";
-      let node = document.head.querySelector<HTMLMetaElement>(`meta[${attribute}="${key}"]`);
+      let node = document.head.querySelector<HTMLMetaElement>(
+        `meta[${attribute}="${key}"]`,
+      );
       if (!node) {
         node = document.createElement("meta");
         node.setAttribute(attribute, key);
@@ -21,7 +36,9 @@ export function Metadata({ title, description }: { title: string; description?: 
       }
       node.content = content;
     }
-    let canonical = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    let canonical = document.head.querySelector<HTMLLinkElement>(
+      'link[rel="canonical"]',
+    );
     if (!canonical) {
       canonical = document.createElement("link");
       canonical.rel = "canonical";
@@ -54,6 +71,16 @@ export function RouteMetadata() {
     "/operating-rules": "Quy chế hoạt động",
     "/payment-policy": "Thanh toán & bảo mật thanh toán",
   };
-  const title = titles[pathname] ?? (pathname.startsWith("/admin") ? "Quản trị" : pathname.startsWith("/customer") ? "Không gian khách hàng" : pathname.startsWith("/staff") ? "Không gian nhân viên" : pathname.startsWith("/creators/") ? "Hồ sơ Creator" : "MediaHub");
+  const title =
+    titles[pathname] ??
+    (pathname.startsWith("/admin")
+      ? "Quản trị"
+      : pathname.startsWith("/customer")
+        ? "Không gian khách hàng"
+        : pathname.startsWith("/staff")
+          ? "Không gian nhân viên"
+          : pathname.startsWith("/creators/")
+            ? "Hồ sơ Creator"
+            : "MediaHub");
   return <Metadata key={pathname} title={title} />;
 }

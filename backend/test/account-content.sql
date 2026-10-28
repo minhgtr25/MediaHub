@@ -1,0 +1,36 @@
+do $$
+declare aid uuid:=gen_random_uuid();uid uuid:=gen_random_uuid();admin_id uuid;creator_user uuid;cid uuid;pid uuid;work uuid;data jsonb;slug text:=gen_random_uuid()::text;denied boolean;query_text text:=gen_random_uuid()::text;
+begin
+ if exists(select 1 from creator_portfolio where is_demo) or exists(select 1 from portfolio where is_demo) then raise exception 'Quarantined demo portfolio data was not removed';end if;
+ if exists(select 1 from services where active and description ilike '%demo%MediaHub:%') then raise exception 'Demo services must not appear in the active catalog';end if;
+ if exists(select 1 from projects where id between '00001388-1000-4000-8000-000000000000'::uuid and '0000139f-1000-4000-8000-000000000fff'::uuid) then raise exception 'Seeded legacy demo projects remain';end if;
+ if exists(select 1 from conversations where id between '00002328-1000-4000-8000-000000000000'::uuid and '00002333-1000-4000-8000-000000000fff'::uuid) then raise exception 'Seeded demo conversations remain';end if;
+ if exists(select 1 from notifications where id between '00001f40-1000-4000-8000-000000000000'::uuid and '00001f5d-1000-4000-8000-000000000fff'::uuid) then raise exception 'Seeded demo notifications remain';end if;
+ if exists(select 1 from conversation_messages where id between '00002710-1000-4000-8000-000000000000'::uuid and '0000273f-1000-4000-8000-000000000fff'::uuid) then raise exception 'Seeded demo messages remain';end if;
+ insert into auth.users(id,email,raw_user_meta_data) values(aid,aid||'@example.invalid','{"full_name":"Directory admin"}'),(uid,query_text||'@example.invalid','{"full_name":"Directory creator"}');
+ select id into admin_id from profiles where auth_user_id=aid;select id into creator_user from profiles where auth_user_id=uid;
+ update profiles set role='ADMIN' where id=admin_id;
+ data:=admin_user_directory(admin_id,'{}');
+ if (data->'summary'->>'total')::bigint<>(select count(*) from profiles) or (data->'summary'->>'active')::bigint<>(select count(*) from profiles where active) or (data->'summary'->>'inactive')::bigint<>(select count(*) from profiles where not active) then raise exception 'Directory counts are not global';end if;
+ if (select sum((x->>'total')::bigint) from jsonb_array_elements(data->'summary'->'by_role') x)<>(select count(*) from profiles) then raise exception 'Role totals do not reconcile';end if;
+ data:=admin_user_directory(admin_id,jsonb_build_object('search',query_text,'role','CUSTOMER','active','true'));
+ if data->>'total'<>'1' or data->'items'->0->>'id'<>creator_user::text then raise exception 'Directory email/role/status filters fail';end if;
+ update profiles set active=false where id=creator_user;
+ if admin_user_directory(admin_id,jsonb_build_object('search',query_text,'active','true'))->>'total'<>'0' or admin_user_directory(admin_id,jsonb_build_object('search',query_text,'active','false'))->>'total'<>'1' then raise exception 'Directory suspension filter fails';end if;
+ denied:=false;begin perform admin_user_directory(creator_user,'{}');exception when raise_exception then denied:=true;end;if not denied then raise exception 'Customer reads account directory';end if;
+ denied:=false;begin perform admin_create_creator_profile(creator_user,jsonb_build_object('slug',slug,'display_name','Real Creator','title','Video','content_confirmed',true));exception when raise_exception then denied:=true;end;if not denied then raise exception 'Non-admin creates creator';end if;
+ cid:=(admin_create_creator_profile(admin_id,jsonb_build_object('slug',slug,'display_name','Real Creator','title','Video','content_confirmed',true))->>'id')::uuid;
+ if public_creator_detail(slug) is not null then raise exception 'Unlinked creator appears publicly';end if;
+ perform onboard_creator(admin_id,cid,creator_user,jsonb_build_object('agreement_reference','AUTHENTIC-TEST','signed_at',now()));
+ data:=public_creator_detail(slug);
+ if data is null or data->>'completed_projects'<>'0' or data->>'review_count'<>'0' or data->>'rating' is not null or jsonb_array_length(data->'creator_portfolio')<>0 then raise exception 'No-work creator displays synthetic metrics';end if;
+ insert into creator_portfolio(creator_id,title,is_demo) values(cid,'Real uploaded work',false) returning id into work;
+ insert into creator_portfolio(creator_id,title,is_demo) values(cid,'Demo work',true);
+ data:=public_creator_detail(slug);
+ if jsonb_array_length(data->'creator_portfolio')<>1 or data->'creator_portfolio'->0->>'id'<>work::text or data->>'completed_projects'<>'0' then raise exception 'Portfolio counted as completed orders or contains demo work';end if;
+ update creator_profiles set is_demo=true where id=cid;
+ if public_creator_detail(slug) is not null or public_creator_search(jsonb_build_object('search','Real Creator'))->'items' @> jsonb_build_array(jsonb_build_object('id',cid)) then raise exception 'Demo Creator leaked publicly';end if;
+ insert into portfolio(title,slug,client,description,published,is_demo) values('Quarantined sample',gen_random_uuid()::text,'Example','Sample',true,true) returning id into pid;
+ if exists(select 1 from company_portfolio_projection() where public_id=pid::text) then raise exception 'Demo project remains publicly visible';end if;
+ if has_function_privilege('authenticated','admin_user_directory(uuid,jsonb)','EXECUTE') or has_function_privilege('anon','admin_create_creator_profile(uuid,jsonb)','EXECUTE') then raise exception 'Browser bypasses account/creator admin API';end if;
+end $$;

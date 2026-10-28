@@ -1,9 +1,14 @@
 import { api, post, patch } from "./api";
 import { authClient } from "../lib/supabase";
+import { registrationDetails } from "../lib/auth";
+import type { Profile } from "../types/auth";
 export const authService = {
-  me: () => api("/auth/me"),
+  me: () => api<Profile>("/auth/me"),
   login: (email: string, password: string) =>
-    authClient().auth.signInWithPassword({ email, password }),
+    authClient().auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    }),
   register: (
     email: string,
     password: string,
@@ -11,22 +16,25 @@ export const authService = {
     metadata?: { audience: "client" | "creator"; organization?: string },
   ) =>
     authClient().auth.signUp({
-      email,
+      email: email.trim().toLowerCase(),
       password,
       options: {
-        data: { full_name, ...metadata },
+        data: {
+          audience: "client",
+          ...registrationDetails(full_name, metadata?.organization || ""),
+        },
         emailRedirectTo: location.origin + "/login",
       },
     }),
-  logout: () => authClient().auth.signOut(),
+  logout: () => authClient().auth.signOut({ scope: "local" }),
   forgot: (email: string) =>
-    authClient().auth.resetPasswordForEmail(email, {
+    authClient().auth.resetPasswordForEmail(email.trim().toLowerCase(), {
       redirectTo: location.origin + "/reset-password",
     }),
   reset: (password: string) => authClient().auth.updateUser({ password }),
 };
 export const projectService = {
-  create: (body: unknown) => post("/projects", body),
+  create: (body: unknown) => post<{ id: string }>("/projects", body),
   action: (id: string, name: string, body: unknown = {}) =>
     post(`/projects/${id}/${name}`, body),
 };

@@ -48,6 +48,7 @@ seoRoutes.get("/sitemap.xml", async (_req, res) => {
         .from("portfolio")
         .select("slug")
         .eq("published", true)
+        .eq("is_demo", false)
         .order("id")
         .range(offset, offset + 999),
     );

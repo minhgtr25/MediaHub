@@ -8,7 +8,7 @@ export class ApiError extends Error {
     super(message);
   }
 }
-export async function api<T = any>(
+export async function api<T = unknown>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
@@ -49,7 +49,7 @@ export async function api<T = any>(
     );
   return body.data;
 }
-export const post = (path: string, body: unknown = {}) =>
-  api(path, { method: "POST", body: JSON.stringify(body) });
-export const patch = (path: string, body: unknown) =>
-  api(path, { method: "PATCH", body: JSON.stringify(body) });
+export const post = <T = unknown>(path: string, body: unknown = {}) =>
+  api<T>(path, { method: "POST", body: JSON.stringify(body) });
+export const patch = <T = unknown>(path: string, body: unknown) =>
+  api<T>(path, { method: "PATCH", body: JSON.stringify(body) });

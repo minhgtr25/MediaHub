@@ -64,7 +64,11 @@ export const authenticate: RequestHandler = async (req, _res, next) => {
 export const requireRole =
   (role: string | string[]): RequestHandler =>
   (req, _res, next) =>
-    (Array.isArray(role) ? role.includes(req.identity.role) : req.identity.role === role)
+    (
+      Array.isArray(role)
+        ? role.includes(req.identity.role)
+        : req.identity.role === role
+    )
       ? next()
       : next(
           new ApiError(

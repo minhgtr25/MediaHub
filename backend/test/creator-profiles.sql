@@ -3,7 +3,7 @@ declare aa uuid:=gen_random_uuid();xa uuid:=gen_random_uuid();ya uuid:=gen_rando
 begin
  insert into auth.users(id,email,raw_user_meta_data) values(aa,aa||'@example.invalid','{"full_name":"Profile admin"}'),(xa,xa||'@example.invalid','{"full_name":"Profile Creator"}'),(ya,ya||'@example.invalid','{"full_name":"Other Creator"}');
  select id into admin_id from profiles where auth_user_id=aa;select id into x from profiles where auth_user_id=xa;select id into y from profiles where auth_user_id=ya;update profiles set role='ADMIN' where id=admin_id;
- insert into creator_profiles(slug,display_name,title,rating,review_count,completed_projects) values(gen_random_uuid()::text,'Projection profile','Video',4.9,999,888) returning id into cx;
+ insert into creator_profiles(slug,display_name,title) values(gen_random_uuid()::text,'Projection profile','Video') returning id into cx;
  insert into creator_profiles(slug,display_name,title) values(gen_random_uuid()::text,'Other projection','Photo') returning id into cy;
  perform onboard_creator(admin_id,cx,x,jsonb_build_object('agreement_reference','PROFILE-X','signed_at',now()));perform onboard_creator(admin_id,cy,y,jsonb_build_object('agreement_reference','PROFILE-Y','signed_at',now()));
  data:=public_creator_detail((select slug from creator_profiles where id=cx));
@@ -15,7 +15,7 @@ begin
  perform creator_profile_action(x,'save',input);
  if not exists(select 1 from creator_skills where creator_id=cx and skill_id=skill) or public_creator_search(jsonb_build_object('search','DaVinci Resolve'))->>'total'<>'1' or public_creator_search(jsonb_build_object('skill',(select slug from skills where id=skill)))->>'total'<>'1' then raise exception 'Profile skills/tools are not searchable';end if;
  update creator_skills set proficiency=5 where creator_id=cx and skill_id=skill;perform creator_profile_action(x,'save',input);if (select proficiency from creator_skills where creator_id=cx and skill_id=skill)<>5 then raise exception 'Profile save silently resets existing skill proficiency';end if;
- if (select rating from creator_profiles where id=cx)<>4.9 or (select verified from creator_profiles where id=cx) then raise exception 'Self profile save rewrites controlled metrics';end if;
+ if (select profile_id from creator_profiles where id=cx)<>x or (select verified or featured from creator_profiles where id=cx) then raise exception 'Self profile save rewrites account linkage or controlled status';end if;
  denied:=false;begin perform creator_profile_action(admin_id,'save',input);exception when raise_exception then denied:=true;end;if not denied then raise exception 'Admin impersonates self-profile owner';end if;
  denied:=false;begin perform creator_profile_action(x,'save',input||jsonb_build_object('skill_ids',jsonb_build_array(gen_random_uuid())));exception when raise_exception then denied:=true;end;if not denied then raise exception 'Unknown skill accepted';end if;
  input:=jsonb_build_object('title','Portfolio owned by Creator','description','Public result','category','Video','client','','project_year',2026,'rights_confirmed',true,'idempotency_key',gen_random_uuid());
@@ -47,5 +47,5 @@ begin
  if public_completed_creator_reviews(data->>'slug',1)->>'rating' is distinct from data->>'rating' then raise exception 'Discovery and review detail ratings diverge';end if;
  update profiles set active=false where id=x;
  if public_creator_detail((select slug from creator_profiles where id=cx)) is not null or creator_profile_state(x) is not null or public_completed_creator_reviews((select slug from creator_profiles where id=cx),1) is not null then raise exception 'Suspended Creator remains publicly discoverable';end if;
- if has_function_privilege('authenticated','creator_profile_action(uuid,text,jsonb)','EXECUTE') or has_table_privilege('anon','creator_discovery_projection','SELECT') or has_table_privilege('authenticated','creator_profiles','SELECT') then raise exception 'Browser bypasses safe Creator projection';end if;
+ if has_function_privilege('authenticated','creator_profile_action(uuid,text,jsonb)','EXECUTE') or has_table_privilege('anon','creator_discovery_projection','SELECT') or has_table_privilege('authenticated','creator_profiles','SELECT') or to_regprocedure('public.legacy_public_completed_creator_reviews_036(text,integer)') is not null then raise exception 'Browser bypasses safe Creator projection';end if;
 end $$;

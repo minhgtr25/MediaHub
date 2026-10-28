@@ -1,49 +1,348 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+﻿import { useState, type ReactNode } from "react";
 import { ActionForm, Field, Pagination, State } from "../../components/ui";
 import { useAuth } from "../../contexts/AuthContext";
 import { useApi } from "../../hooks/useApi";
-import { notifyOrderUpdated, useOrderUpdates } from "../../hooks/useOrderUpdates";
+import {
+  notifyOrderUpdated,
+  useOrderUpdates,
+} from "../../hooks/useOrderUpdates";
 import { post } from "../../services/api";
 import { isCustomerRole } from "../../lib/permissions";
-import { InlineCreatorProfile } from "../../components/InlineCreatorProfile";
-type Member={assignment_id:string;creator_id:string;display_name:string;work_scope:string;deadline:string|null;status:string};
-type Invite={id:string;creator_snapshot:{display_name:string};work_scope:string;deadline:string;expires_at:string;effective_status:string};
-type Replacement={id:string;reason:string;status:string;response_note:string|null;old_snapshot:{creator:{display_name:string}};invites:Invite[]};
-type Delay={reported_by_name:string;decided_by_name:string|null;responsible_creator_name:string|null;id:string;description:string;status:string;proposed_responsibility:string;proposed_deadline:string|null;responsibility:string|null;previous_deadline:string|null;new_deadline:string|null;decision_note:string|null;responsible_creator_id:string|null};
-type Execution={responsible_creators:Pick<Member,'creator_id'|'display_name'>[];team:Member[];replacements:Replacement[];delays:Delay[];replacement_count:number;delay_count:number;page:number;can_change:boolean;has_project:boolean;deadline:string|null};
-const parties:Record<string,string>={CUSTOMER:'Customer',CREATOR:'Creator',STAFF:'Staff',MEDIAHUB:'Công ty MediaHub',EXTERNAL:'Bên ngoài',UNDETERMINED:'Chưa xác định'};
-const statuses:Record<string,string>={REQUESTED:'Chờ Staff xử lý',INVITED:'Chờ người mới xác nhận',COMPLETED:'Đã đổi người',REJECTED:'Staff từ chối',WITHDRAWN:'Customer đã rút',PENDING:'Đang giữ chỗ',ACCEPTED:'Đã xác nhận',DECLINED:'Đã từ chối',EXPIRED:'Hết thời gian',CANCELLED:'Đã thu hồi',REPORTED:'Chờ Staff xác minh',APPLIED:'Đã ghi nhận lịch và trách nhiệm',DISMISSED:'Đã đóng báo cáo'};
-function useIntent(){const saved=useRef<{input:string;key:string}|null>(null);return(input:unknown)=>{const value=JSON.stringify(input);if(saved.current?.input!==value)saved.current={input:value,key:crypto.randomUUID()};return saved.current!.key;};}
-function useRefresh(refresh:()=>void,enabled=true){const ref=useRef(refresh);ref.current=refresh;useEffect(()=>{if(!enabled)return;const run=()=>{if(document.visibilityState==='visible')ref.current();};const timer=window.setInterval(run,15000);window.addEventListener('focus',run);return()=>{clearInterval(timer);window.removeEventListener('focus',run);};},[enabled]);}
-function PartyField({name='responsibility'}:{name?:string}){return <label className="field">Bên liên quan<select name={name} required defaultValue="UNDETERMINED">{Object.entries(parties).map(([v,label])=><option key={v} value={v}>{label}</option>)}</select></label>;}
-export function ExecutionPanel({id,onChanged,active=true}:{id:string;onChanged:()=>void;active?:boolean}){
- const {role}=useAuth(),customer=isCustomerRole(role),operator=['STAFF','ADMIN'].includes(role||''),[page,setPage]=useState(1),[revision,setRevision]=useState(0),query=useApi<Execution>(`/execution/${id}?page=${page}`),intent=useIntent();
- useRefresh(query.reload,active);useOrderUpdates(id,query.reload);
- const changed=()=>{notifyOrderUpdated(id);onChanged();};
- const action=(op:string,input:Record<string,unknown>)=>post(`/execution/${id}/${op}`,input);
- return <section className="panel contract-panel" id="execution"><header><h2>Điều phối &amp; lịch</h2><button className="btn btn-ghost" disabled={query.loading} onClick={changed}>Làm mới</button></header><State query={query}>{query.data&&<>
- <h3>Đội đang phụ trách</h3><p>Hạn dự án hiện tại: {query.data.deadline||'Staff chưa chốt lịch'}</p>{query.data.team.map(m=><article className="team-progress" key={m.assignment_id}><strong>{m.display_name}</strong><p className="preserve-lines">{m.work_scope}</p><p>Hạn phần việc: {m.deadline||'Chưa có'}</p></article>)}
- {customer&&query.data.can_change&&<details><summary>Yêu cầu đổi Creator</summary><p>Người hiện tại tiếp tục phụ trách đến khi người thay thế xác nhận. Mọi thay đổi giá hoặc phạm vi được chốt riêng ở Phát sinh.</p><ActionForm key={revision} label="Gửi yêu cầu đổi" onSubmit={f=>{const input={assignment_id:f.get('assignment_id'),reason:f.get('reason')};return action('replacement_request',{...input,idempotency_key:intent([revision,input])});}} onSuccess={()=>{setRevision(v=>v+1);changed();}}><label className="field">Người cần thay thế<select required name="assignment_id"><option value="">Chọn Creator</option>{query.data!.team.filter(m=>m.status==='ACCEPTED').map(m=><option key={m.assignment_id} value={m.assignment_id}>{m.display_name}</option>)}</select></label><Field name="reason" label="Lý do và mong muốn (Customer, Staff xem)" type="textarea" maxLength={2000}/></ActionForm></details>}
- {query.data.replacements.map(v=><article className="quote-version" key={v.id}><h3>Đổi {v.old_snapshot.creator.display_name}</h3><span className="status">{statuses[v.status]}</span><p className="preserve-lines">{v.reason}</p>{v.response_note&&<p>Staff/Customer phản hồi: {v.response_note}</p>}{v.invites.map(i=><article key={i.id}><strong>{i.creator_snapshot.display_name} · {statuses[i.effective_status]}</strong><p>{i.work_scope} · Hạn {i.deadline}</p><small>Giữ chỗ đến {new Date(i.expires_at).toLocaleString('vi-VN')}</small></article>)}
- {['REQUESTED','INVITED'].includes(v.status)&&query.data!.can_change&&<>{operator&&<LazyDetails label="Phê duyệt và mời người thay thế"><ReplacementBuilder id={id} replacementId={v.id} deadline={query.data!.deadline} onChanged={changed}/></LazyDetails>}{(operator||customer)&&<details><summary>{customer?'Rút yêu cầu':'Từ chối yêu cầu'}</summary><ActionForm label="Lưu lý do đóng" onSubmit={f=>action(customer?'replacement_withdraw':'replacement_reject',{replacement_id:v.id,reason:f.get('reason')})} onSuccess={changed}><Field name="reason" label="Lý do" type="textarea" maxLength={2000}/></ActionForm></details>}</>}
- </article>)}
- {query.data.can_change&&query.data.has_project&&<details><summary>Báo cáo nguy cơ hoặc trễ hạn</summary><p>Báo cáo chưa thay đổi lịch. Staff xác minh nguyên nhân, bên chịu trách nhiệm và hạn mới.</p><ActionForm key={`delay-${revision}`} label="Gửi báo cáo" onSubmit={f=>{const input={description:f.get('description'),responsibility:f.get('responsibility'),...(f.get('proposed_deadline')?{proposed_deadline:f.get('proposed_deadline')}:{})};return action('delay_report',{...input,idempotency_key:intent([revision,input])});}} onSuccess={()=>{setRevision(v=>v+1);changed();}}><Field name="description" label="Nguyên nhân và ảnh hưởng đến bàn giao" type="textarea" maxLength={3000}/><PartyField/><Field name="proposed_deadline" label="Hạn đề xuất (có thể bỏ trống)" type="date" required={false}/></ActionForm></details>}
- <h3>Báo cáo lịch và trách nhiệm</h3>{!query.data.delays.length&&<p>Chưa có báo cáo.</p>}{query.data.delays.map(d=><article className="quote-version" key={d.id}><span className="status">{statuses[d.status]}</span><p className="preserve-lines">{d.description}</p><small>Người báo cáo: {d.reported_by_name}</small><p>Đề nghị: {parties[d.proposed_responsibility]} · Hạn {d.proposed_deadline||'Chưa đề xuất'}</p>{d.decision_note&&<><p>{d.decided_by_name||'Staff'} xác minh: {d.responsibility?parties[d.responsibility]:'Đóng báo cáo'} · Lịch {d.previous_deadline||'Chưa chốt'} → {d.new_deadline||'Giữ nguyên'}</p><p>{d.decision_note}</p>{d.responsible_creator_id&&<p>Creator chịu trách nhiệm: {d.responsible_creator_name||'Creator trong lịch sử phân công'}</p>}</>}
- {operator&&d.status==='REPORTED'&&query.data!.can_change&&<DelayDecision id={id} delay={d} team={query.data!.responsible_creators} onChanged={changed}/>}</article>)}
- <Pagination page={page} total={Math.max(query.data.replacement_count,query.data.delay_count)} limit={10} onChange={setPage}/>
- </>}</State></section>;
+import { parties, statuses } from "./execution-shared";
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+import { useIdempotencyKey } from "../../hooks/useIdempotencyKey";
+import { ReplacementBuilder, DelayDecision } from "./ExecutionActions";
+import type { Delay, Member } from "./execution.types";
+type Invite = {
+  id: string;
+  creator_snapshot: { display_name: string };
+  work_scope: string;
+  deadline: string;
+  expires_at: string;
+  effective_status: string;
+};
+type Replacement = {
+  id: string;
+  reason: string;
+  status: string;
+  response_note: string | null;
+  old_snapshot: { creator: { display_name: string } };
+  invites: Invite[];
+};
+type Execution = {
+  responsible_creators: Pick<Member, "creator_id" | "display_name">[];
+  team: Member[];
+  replacements: Replacement[];
+  delays: Delay[];
+  replacement_count: number;
+  delay_count: number;
+  page: number;
+  can_change: boolean;
+  has_project: boolean;
+  deadline: string | null;
+};
+function PartyField({ name = "responsibility" }: { name?: string }) {
+  return (
+    <label className="field">
+      BÃªn liÃªn quan
+      <select name={name} required defaultValue="UNDETERMINED">
+        {Object.entries(parties).map(([v, label]) => (
+          <option key={v} value={v}>
+            {label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
 }
-function LazyDetails({label,children}:{label:string;children:ReactNode}){const [visited,setVisited]=useState(false);return <details onToggle={e=>{if(e.currentTarget.open)setVisited(true);}}><summary>{label}</summary>{visited&&children}</details>;}
-function ReplacementBuilder({id,replacementId,deadline,onChanged}:{id:string;replacementId:string;deadline:string|null;onChanged:()=>void}){
- const [search,setSearch]=useState(''),[selected,setSelected]=useState(''),intent=useIntent(),q=useApi<{items:{id:string;display_name:string;title:string;slug:string}[]}>(`/execution/${id}/candidates?${new URLSearchParams({search})}`),creator=q.data?.items.find(c=>c.id===selected);
- return <ActionForm label="Phê duyệt và gửi lời mời" onSubmit={f=>{const input={replacement_id:replacementId,creator_id:selected,reason:f.get('reason'),work_scope:f.get('work_scope'),deadline:f.get('deadline'),response_minutes:Number(f.get('response_minutes'))};return post(`/execution/${id}/replacement_invite`,{...input,idempotency_key:intent(input)});}} onSuccess={onChanged}><label className="field">Tìm Creator<input value={search} maxLength={100} onChange={e=>{setSearch(e.target.value);setSelected('');}}/></label><State query={q}><label className="field">Creator đang rảnh<select required value={selected} onChange={e=>setSelected(e.target.value)}><option value="">Chọn người phù hợp</option>{q.data?.items.map(c=><option key={c.id} value={c.id}>{c.display_name} · {c.title}</option>)}</select></label>{q.data&&!q.data.items.length&&<p>Chưa có Creator rảnh phù hợp. Thử từ khóa khác hoặc làm mới sau.</p>}</State>{creator&&<InlineCreatorProfile slug={creator.slug}/>}<Field name="reason" label="Căn cứ phê duyệt của Staff" type="textarea" maxLength={2000}/><Field name="work_scope" label="Phần việc gửi cho Creator mới" type="textarea" maxLength={3000}/><Field name="deadline" label="Hạn phần việc (trong lịch dự án)" type="date" value={deadline||undefined}/><label className="field">Giữ chỗ (phút)<input required name="response_minutes" type="number" min={5} max={15} step={1} defaultValue={15}/></label></ActionForm>;
+export function ExecutionPanel({
+  id,
+  onChanged,
+  active = true,
+}: {
+  id: string;
+  onChanged: () => void;
+  active?: boolean;
+}) {
+  const { role } = useAuth(),
+    customer = isCustomerRole(role),
+    operator = ["STAFF", "ADMIN"].includes(role || ""),
+    [page, setPage] = useState(1),
+    [revision, setRevision] = useState(0),
+    query = useApi<Execution>(`/execution/${id}?page=${page}`),
+    intent = useIdempotencyKey();
+  useAutoRefresh(query.reload, { intervalMs: 15000, enabled: active });
+  useOrderUpdates(id, query.reload);
+  const changed = () => {
+    notifyOrderUpdated(id);
+    onChanged();
+  };
+  const action = (op: string, input: Record<string, unknown>) =>
+    post(`/execution/${id}/${op}`, input);
+  return (
+    <section className="panel contract-panel" id="execution">
+      <header>
+        <h2>Äiá»u phá»‘i &amp; lá»‹ch</h2>
+        <button
+          className="btn btn-ghost"
+          disabled={query.loading}
+          onClick={changed}
+        >
+          LÃ m má»›i
+        </button>
+      </header>
+      <State query={query}>
+        {query.data && (
+          <>
+            <h3>Äá»™i Ä‘ang phá»¥ trÃ¡ch</h3>
+            <p>
+              Háº¡n dá»± Ã¡n hiá»‡n táº¡i:{" "}
+              {query.data.deadline || "Staff chÆ°a chá»‘t lá»‹ch"}
+            </p>
+            {query.data.team.map((m) => (
+              <article className="team-progress" key={m.assignment_id}>
+                <strong>{m.display_name}</strong>
+                <p className="preserve-lines">{m.work_scope}</p>
+                <p>Háº¡n pháº§n viá»‡c: {m.deadline || "ChÆ°a cÃ³"}</p>
+              </article>
+            ))}
+            {customer && query.data.can_change && (
+              <details>
+                <summary>YÃªu cáº§u Ä‘á»•i Creator</summary>
+                <p>
+                  NgÆ°á»i hiá»‡n táº¡i tiáº¿p tá»¥c phá»¥ trÃ¡ch Ä‘áº¿n khi
+                  ngÆ°á»i thay tháº¿ xÃ¡c nháº­n. Má»i thay Ä‘á»•i giÃ¡ hoáº·c
+                  pháº¡m vi Ä‘Æ°á»£c chá»‘t riÃªng á»Ÿ PhÃ¡t sinh.
+                </p>
+                <ActionForm
+                  key={revision}
+                  label="Gá»­i yÃªu cáº§u Ä‘á»•i"
+                  onSubmit={(f) => {
+                    const input = {
+                      assignment_id: f.get("assignment_id"),
+                      reason: f.get("reason"),
+                    };
+                    return action("replacement_request", {
+                      ...input,
+                      idempotency_key: intent([revision, input]),
+                    });
+                  }}
+                  onSuccess={() => {
+                    setRevision((v) => v + 1);
+                    changed();
+                  }}
+                >
+                  <label className="field">
+                    NgÆ°á»i cáº§n thay tháº¿
+                    <select required name="assignment_id">
+                      <option value="">Chá»n Creator</option>
+                      {query
+                        .data!.team.filter((m) => m.status === "ACCEPTED")
+                        .map((m) => (
+                          <option key={m.assignment_id} value={m.assignment_id}>
+                            {m.display_name}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <Field
+                    name="reason"
+                    label="LÃ½ do vÃ  mong muá»‘n (Customer, Staff xem)"
+                    type="textarea"
+                    maxLength={2000}
+                  />
+                </ActionForm>
+              </details>
+            )}
+            {query.data.replacements.map((v) => (
+              <article className="quote-version" key={v.id}>
+                <h3>Äá»•i {v.old_snapshot.creator.display_name}</h3>
+                <span className="status">{statuses[v.status]}</span>
+                <p className="preserve-lines">{v.reason}</p>
+                {v.response_note && (
+                  <p>Staff/Customer pháº£n há»“i: {v.response_note}</p>
+                )}
+                {v.invites.map((i) => (
+                  <article key={i.id}>
+                    <strong>
+                      {i.creator_snapshot.display_name} Â·{" "}
+                      {statuses[i.effective_status]}
+                    </strong>
+                    <p>
+                      {i.work_scope} Â· Háº¡n {i.deadline}
+                    </p>
+                    <small>
+                      Giá»¯ chá»— Ä‘áº¿n{" "}
+                      {new Date(i.expires_at).toLocaleString("vi-VN")}
+                    </small>
+                  </article>
+                ))}
+                {["REQUESTED", "INVITED"].includes(v.status) &&
+                  query.data!.can_change && (
+                    <>
+                      {operator && (
+                        <LazyDetails label="PhÃª duyá»‡t vÃ  má»i ngÆ°á»i thay tháº¿">
+                          <ReplacementBuilder
+                            id={id}
+                            replacementId={v.id}
+                            deadline={query.data!.deadline}
+                            onChanged={changed}
+                          />
+                        </LazyDetails>
+                      )}
+                      {(operator || customer) && (
+                        <details>
+                          <summary>
+                            {customer
+                              ? "RÃºt yÃªu cáº§u"
+                              : "Tá»« chá»‘i yÃªu cáº§u"}
+                          </summary>
+                          <ActionForm
+                            label="LÆ°u lÃ½ do Ä‘Ã³ng"
+                            onSubmit={(f) =>
+                              action(
+                                customer
+                                  ? "replacement_withdraw"
+                                  : "replacement_reject",
+                                {
+                                  replacement_id: v.id,
+                                  reason: f.get("reason"),
+                                },
+                              )
+                            }
+                            onSuccess={changed}
+                          >
+                            <Field
+                              name="reason"
+                              label="LÃ½ do"
+                              type="textarea"
+                              maxLength={2000}
+                            />
+                          </ActionForm>
+                        </details>
+                      )}
+                    </>
+                  )}
+              </article>
+            ))}
+            {query.data.can_change && query.data.has_project && (
+              <details>
+                <summary>BÃ¡o cÃ¡o nguy cÆ¡ hoáº·c trá»… háº¡n</summary>
+                <p>
+                  BÃ¡o cÃ¡o chÆ°a thay Ä‘á»•i lá»‹ch. Staff xÃ¡c minh nguyÃªn
+                  nhÃ¢n, bÃªn chá»‹u trÃ¡ch nhiá»‡m vÃ  háº¡n má»›i.
+                </p>
+                <ActionForm
+                  key={`delay-${revision}`}
+                  label="Gá»­i bÃ¡o cÃ¡o"
+                  onSubmit={(f) => {
+                    const input = {
+                      description: f.get("description"),
+                      responsibility: f.get("responsibility"),
+                      ...(f.get("proposed_deadline")
+                        ? { proposed_deadline: f.get("proposed_deadline") }
+                        : {}),
+                    };
+                    return action("delay_report", {
+                      ...input,
+                      idempotency_key: intent([revision, input]),
+                    });
+                  }}
+                  onSuccess={() => {
+                    setRevision((v) => v + 1);
+                    changed();
+                  }}
+                >
+                  <Field
+                    name="description"
+                    label="NguyÃªn nhÃ¢n vÃ  áº£nh hÆ°á»Ÿng Ä‘áº¿n bÃ n giao"
+                    type="textarea"
+                    maxLength={3000}
+                  />
+                  <PartyField />
+                  <Field
+                    name="proposed_deadline"
+                    label="Háº¡n Ä‘á» xuáº¥t (cÃ³ thá»ƒ bá» trá»‘ng)"
+                    type="date"
+                    required={false}
+                  />
+                </ActionForm>
+              </details>
+            )}
+            <h3>BÃ¡o cÃ¡o lá»‹ch vÃ  trÃ¡ch nhiá»‡m</h3>
+            {!query.data.delays.length && <p>ChÆ°a cÃ³ bÃ¡o cÃ¡o.</p>}
+            {query.data.delays.map((d) => (
+              <article className="quote-version" key={d.id}>
+                <span className="status">{statuses[d.status]}</span>
+                <p className="preserve-lines">{d.description}</p>
+                <small>NgÆ°á»i bÃ¡o cÃ¡o: {d.reported_by_name}</small>
+                <p>
+                  Äá» nghá»‹: {parties[d.proposed_responsibility]} Â· Háº¡n{" "}
+                  {d.proposed_deadline || "ChÆ°a Ä‘á» xuáº¥t"}
+                </p>
+                {d.decision_note && (
+                  <>
+                    <p>
+                      {d.decided_by_name || "Staff"} xÃ¡c minh:{" "}
+                      {d.responsibility
+                        ? parties[d.responsibility]
+                        : "ÄÃ³ng bÃ¡o cÃ¡o"}{" "}
+                      Â· Lá»‹ch {d.previous_deadline || "ChÆ°a chá»‘t"} â†’{" "}
+                      {d.new_deadline || "Giá»¯ nguyÃªn"}
+                    </p>
+                    <p>{d.decision_note}</p>
+                    {d.responsible_creator_id && (
+                      <p>
+                        Creator chá»‹u trÃ¡ch nhiá»‡m:{" "}
+                        {d.responsible_creator_name ||
+                          "Creator trong lá»‹ch sá»­ phÃ¢n cÃ´ng"}
+                      </p>
+                    )}
+                  </>
+                )}
+                {operator &&
+                  d.status === "REPORTED" &&
+                  query.data!.can_change && (
+                    <DelayDecision
+                      id={id}
+                      delay={d}
+                      team={query.data!.responsible_creators}
+                      onChanged={changed}
+                    />
+                  )}
+              </article>
+            ))}
+            <Pagination
+              page={page}
+              total={Math.max(
+                query.data.replacement_count,
+                query.data.delay_count,
+              )}
+              limit={10}
+              onChange={setPage}
+            />
+          </>
+        )}
+      </State>
+    </section>
+  );
 }
-function DelayDecision({id,delay,team,onChanged}:{id:string;delay:Delay;team:Pick<Member,'creator_id'|'display_name'>[];onChanged:()=>void}){
- const [party,setParty]=useState('UNDETERMINED');return <details><summary>Xác minh báo cáo</summary><ActionForm label="Ghi nhận trách nhiệm và lịch mới" onSubmit={f=>post(`/execution/${id}/delay_apply`,{delay_id:delay.id,reason:f.get('reason'),responsibility:party,new_deadline:f.get('new_deadline'),...(party==='CREATOR'?{responsible_creator_id:f.get('responsible_creator_id')}:{})})} onSuccess={onChanged}><label className="field">Bên chịu trách nhiệm<select value={party} onChange={e=>setParty(e.target.value)}>{Object.entries(parties).map(([v,label])=><option key={v} value={v}>{label}</option>)}</select></label>{party==='CREATOR'&&<label className="field">Creator chịu trách nhiệm<select required name="responsible_creator_id"><option value="">Chọn Creator</option>{team.map(m=><option key={m.creator_id} value={m.creator_id}>{m.display_name}</option>)}</select></label>}<Field name="new_deadline" label="Hạn dự án mới" type="date" value={delay.proposed_deadline||undefined}/><Field name="reason" label="Căn cứ đã xác minh (cả đội xem được)" type="textarea" maxLength={2000}/></ActionForm><ActionForm label="Đóng báo cáo, giữ lịch" onSubmit={f=>post(`/execution/${id}/delay_dismiss`,{delay_id:delay.id,reason:f.get('reason')})} onSuccess={onChanged}><Field name="reason" label="Lý do đóng" type="textarea" maxLength={2000}/></ActionForm></details>;
-}
-export function ReplacementInvitations({onChanged}:{onChanged:()=>void}){
- const [page,setPage]=useState(1),[now,setNow]=useState(Date.now()),q=useApi<{items:{id:string;request_title:string;staff_name:string;work_scope:string;deadline:string;expires_at:string;effective_status:string;active:boolean;new_assignment_id:string|null}[];total:number;page:number}>(`/execution/invitations?page=${page}`);
- useRefresh(()=>{setNow(Date.now());q.reload();});const changed=()=>{q.reload();onChanged();};
- return <section className="panel"><h2>Lời mời nhận phần việc thay thế</h2><p>Staff có thể trao đổi ngoài hệ thống. Bạn cần tự xác nhận lời mời tại đây trong 5–15 phút để được thêm vào hội thoại dự án.</p><State query={q}>{q.data?.items.map(i=>{const available=i.active&&new Date(i.expires_at).getTime()>now;return <article className="quote-version" key={i.id}><h3>{i.request_title}</h3><p>Staff: {i.staff_name}</p><p className="preserve-lines">{i.work_scope}</p><p>Hạn bàn giao: {i.deadline}</p><span className="status">{statuses[i.effective_status]}</span><p>Giữ chỗ đến {new Date(i.expires_at).toLocaleString('vi-VN')}</p>{available&&<><ActionForm label="Xác nhận nhận việc" onSubmit={()=>post(`/execution/invitations/${i.id}/accept`,{})} onSuccess={changed}/><details><summary>Từ chối lời mời</summary><ActionForm label="Gửi lý do từ chối" onSubmit={f=>post(`/execution/invitations/${i.id}/decline`,{reason:f.get('reason')})} onSuccess={changed}><Field name="reason" label="Lý do" type="textarea" maxLength={2000}/></ActionForm></details></>}{i.effective_status==='ACCEPTED'&&i.new_assignment_id&&<Link className="btn btn-primary" to={`/creator/assignments/${i.new_assignment_id}`}>Mở phần việc</Link>}</article>;})}{q.data&&!q.data.items.length&&<p>Chưa có lời mời thay thế.</p>}{q.data&&<Pagination page={page} total={q.data.total} limit={10} onChange={setPage}/>}</State></section>;
+function LazyDetails({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  const [visited, setVisited] = useState(false);
+  return (
+    <details
+      onToggle={(e) => {
+        if (e.currentTarget.open) setVisited(true);
+      }}
+    >
+      <summary>{label}</summary>
+      {visited && children}
+    </details>
+  );
 }

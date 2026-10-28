@@ -30,8 +30,16 @@ export function CompanyContact() {
   return (
     <address className="company-contact">
       {name && <p>{name}</p>}
-      {email && <p><a href={`mailto:${encodeURIComponent(email)}`}>{email}</a></p>}
-      {phone && <p><a href={`tel:${phone.replace(/[^+\d]/g, "")}`}>{phone}</a></p>}
+      {email && (
+        <p>
+          <a href={`mailto:${encodeURIComponent(email)}`}>{email}</a>
+        </p>
+      )}
+      {phone && (
+        <p>
+          <a href={`tel:${phone.replace(/[^+\d]/g, "")}`}>{phone}</a>
+        </p>
+      )}
       {address && <p>{address}</p>}
       {query.error && (
         <p role="status">Thông tin liên hệ hiện chưa tải được.</p>

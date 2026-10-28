@@ -15,7 +15,7 @@ begin
  select submitted_at into first_time from order_result_reviews where order_id=oid;
  perform order_feedback_action(customer_id,oid,'review',input||'{"rating":5,"content":"Edited result"}');
  if (select submitted_at from order_result_reviews where order_id=oid)<>first_time or (select rating from order_result_reviews where order_id=oid)<>5 or (select count(*) from order_creator_reviews where order_id=oid)<>2 then raise exception 'Edit resets 7-day clock/creates duplicate reviews';end if;
- if exists(select 1 from creator_reviews where reviewer_id=customer_id) then raise exception 'Private review identity copied to public legacy table';end if;
+ if to_regclass('public.creator_reviews') is not null then raise exception 'Retired public legacy creator review table still exists';end if;
  insert into storage.objects(bucket_id,name,metadata) values('case-study-excerpts',path,'{"size":100,"mimetype":"image/png"}');
  perform order_feedback_action(admin_id,oid,'asset',jsonb_build_object('path',path));
  denied:=false;begin perform order_feedback_action(staff_id,oid,'publish',jsonb_build_object('title','Small excerpt','excerpt','Only a small part','image_path',path,'excerpt_checked',true,'identity_checked',true));exception when raise_exception then denied:=true;end;if not denied then raise exception 'Staff publishes case study';end if;

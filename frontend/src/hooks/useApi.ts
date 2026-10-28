@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { api, ApiError } from "../services/api";
-export function useApi<T = any>(path: string | null, keepDataOnReload = true) {
+export function useApi<T = unknown>(
+  path: string | null,
+  keepDataOnReload = true,
+) {
   const [loadedPath, setLoadedPath] = useState<string | null>(null);
   const [errorPath, setErrorPath] = useState<string | null>(null);
   const [data, setData] = useState<T | null>(null),
@@ -20,12 +23,17 @@ export function useApi<T = any>(path: string | null, keepDataOnReload = true) {
     setError("");
     api<T>(path, { signal: controller.signal })
       .then((value) => {
-        if (!controller.signal.aborted) { setData(value); setLoadedPath(path); }
+        if (!controller.signal.aborted) {
+          setData(value);
+          setLoadedPath(path);
+        }
       })
       .catch((e) => {
         if (!controller.signal.aborted) {
-          if (e instanceof ApiError && [401, 403, 404].includes(e.status)) setData(null);
-          setError(e.message); setErrorPath(path);
+          if (e instanceof ApiError && [401, 403, 404].includes(e.status))
+            setData(null);
+          setError(e.message);
+          setErrorPath(path);
         }
       })
       .finally(() => {
@@ -33,5 +41,10 @@ export function useApi<T = any>(path: string | null, keepDataOnReload = true) {
       });
     return () => controller.abort();
   }, [path, version, keepDataOnReload]);
-  return { data: loadedPath === path ? data : null, error: errorPath === path ? error : "", loading, reload: () => setVersion((v) => v + 1) };
+  return {
+    data: loadedPath === path ? data : null,
+    error: errorPath === path ? error : "",
+    loading,
+    reload: () => setVersion((v) => v + 1),
+  };
 }

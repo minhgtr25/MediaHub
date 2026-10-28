@@ -19,28 +19,58 @@ export function dashboardSearchDestination(role: string | null, value: string) {
 }
 
 const pageLabels: Record<string, string> = {
-  dashboard: "Tổng quan", requests: "Yêu cầu tư vấn", orders: "Đơn dịch vụ",
-  projects: "Dự án", quotations: "Báo giá", payments: "Thanh toán", invoices: "Hóa đơn",
-  notifications: "Thông báo", profile: "Hồ sơ & Bảo mật", finance: "Thống kê tài chính",
-  support: "Hỗ trợ khách hàng", users: "Tài khoản", employees: "Nhân viên",
-  creators: "Cấp tài khoản Creator", "case-studies": "Duyệt dự án tiêu biểu",
-  "payment-settings": "Ngân hàng & QR", "service-packages": "Gói dịch vụ",
-  files: "Tệp dự án", leads: "Liên hệ & ứng tuyển", partners: "Đối tác", process: "Quy trình",
-  settings: "Nội dung website", "activity-logs": "Nhật ký hoạt động", customers: "Khách hàng",
-  revenue: "Doanh số", services: "Dịch vụ", portfolio: "Hồ sơ dự án", testimonials: "Đánh giá",
+  dashboard: "Tổng quan",
+  requests: "Yêu cầu tư vấn",
+  orders: "Đơn dịch vụ",
+  projects: "Dự án",
+  quotations: "Báo giá",
+  payments: "Thanh toán",
+  invoices: "Hóa đơn",
+  notifications: "Thông báo",
+  profile: "Hồ sơ & Bảo mật",
+  finance: "Thống kê tài chính",
+  support: "Hỗ trợ khách hàng",
+  users: "Tài khoản",
+  employees: "Nhân viên",
+  creators: "Cấp tài khoản Creator",
+  "case-studies": "Duyệt dự án tiêu biểu",
+  "payment-settings": "Ngân hàng & QR",
+  "service-packages": "Gói dịch vụ",
+  files: "Tệp dự án",
+  leads: "Liên hệ & ứng tuyển",
+  partners: "Đối tác",
+  process: "Quy trình",
+  settings: "Nội dung website",
+  "activity-logs": "Nhật ký hoạt động",
+  customers: "Khách hàng",
+  revenue: "Doanh số",
+  services: "Dịch vụ",
+  portfolio: "Hồ sơ dự án",
+  testimonials: "Đánh giá",
   assignments: "Công việc của tôi",
 };
 
 export function dashboardBreadcrumbs(role: string | null, pathname: string) {
-  const home = workspaceHome(role), prefix = home.slice(0, home.lastIndexOf("/"));
-  const crumbs: { label: string; to?: string }[] = [{ label: "Tổng quan", to: home }];
+  const home = workspaceHome(role),
+    prefix = home.slice(0, home.lastIndexOf("/"));
+  const crumbs: { label: string; to?: string }[] = [
+    { label: "Tổng quan", to: home },
+  ];
   if (pathname === home) return [{ label: "Tổng quan" }];
-  if (!home.endsWith("/dashboard") || !pathname.startsWith(`${prefix}/`)) return crumbs;
+  if (!home.endsWith("/dashboard") || !pathname.startsWith(`${prefix}/`))
+    return crumbs;
   const [page, detail] = pathname.slice(prefix.length + 1).split("/");
-  const creatorDetail = prefix === "/creator" && ["assignments", "requests"].includes(page);
-  const label = creatorDetail ? "Công việc của tôi" : pageLabels[page] || "Công việc";
-  crumbs.push({ label, ...(detail ? { to: creatorDetail ? home : `${prefix}/${page}` } : {}) });
-  if (detail) crumbs.push({ label: detail === "new" ? "Gửi yêu cầu" : "Chi tiết" });
+  const creatorDetail =
+    prefix === "/creator" && ["assignments", "requests"].includes(page);
+  const label = creatorDetail
+    ? "Công việc của tôi"
+    : pageLabels[page] || "Công việc";
+  crumbs.push({
+    label,
+    ...(detail ? { to: creatorDetail ? home : `${prefix}/${page}` } : {}),
+  });
+  if (detail)
+    crumbs.push({ label: detail === "new" ? "Gửi yêu cầu" : "Chi tiết" });
   return crumbs;
 }
 

@@ -18,7 +18,8 @@ async function owned(req: Request) {
       .maybeSingle(),
   );
   if (
-    !project || project.order_id ||
+    !project ||
+    project.order_id ||
     !canAccess(req.identity.role, req.identity.customer_id, project.customer_id)
   )
     throw new ApiError(404, "NOT_FOUND", "Project not found.");

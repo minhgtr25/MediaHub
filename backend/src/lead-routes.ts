@@ -8,7 +8,11 @@ import { randomUUID } from "node:crypto";
 import { fileType } from "./file-validation.js";
 import { authenticate, requireRole } from "./middleware.js";
 import { customerRoles } from "./domain.js";
-import { businessContactSchema, creatorApplicationSchema, intakeSources } from "./intake-validators.js";
+import {
+  businessContactSchema,
+  creatorApplicationSchema,
+  intakeSources,
+} from "./intake-validators.js";
 import { notifyIntake } from "./intake-email.js";
 
 export const leadSchema = z
@@ -30,8 +34,17 @@ export const leadSchema = z
   .strict();
 export const publicLeadRoutes = Router();
 export const intakeLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: "draft-8", legacyHeaders: false,
-  message: { success: false, error: { code: "RATE_LIMIT", message: "Bạn đã gửi nhiều liên hệ. Vui lòng thử lại sau." } },
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: {
+      code: "RATE_LIMIT",
+      message: "Bạn đã gửi nhiều liên hệ. Vui lòng thử lại sau.",
+    },
+  },
 });
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -42,13 +55,22 @@ publicLeadRoutes.post(
   intakeLimiter,
   upload.single("attachment"),
   (req, res, next) => {
-    const input = typeof req.body?.payload === "string" ? JSON.parse(req.body.payload) : req.body;
+    const input =
+      typeof req.body?.payload === "string"
+        ? JSON.parse(req.body.payload)
+        : req.body;
     if (req.path === "/business-contact") {
-      req.body = { ...businessContactSchema.parse(input), source: "BUSINESS_CONTACT" };
+      req.body = {
+        ...businessContactSchema.parse(input),
+        source: "BUSINESS_CONTACT",
+      };
       return next();
     }
     if (req.path === "/creator-applications") {
-      req.body = { ...creatorApplicationSchema.parse(input), source: "CREATOR_APPLICATION" };
+      req.body = {
+        ...creatorApplicationSchema.parse(input),
+        source: "CREATOR_APPLICATION",
+      };
       return next();
     }
     const body = leadSchema.parse(input);
@@ -84,13 +106,29 @@ publicLeadRoutes.post(
         );
     }
     if (body.source === "CREATOR_APPLICATION") {
-      if (!req.file) throw new ApiError(422, "CV_REQUIRED", "Vui lòng gửi CV dạng PDF, tối đa 10 MB.");
+      if (!req.file)
+        throw new ApiError(
+          422,
+          "CV_REQUIRED",
+          "Vui lòng gửi CV dạng PDF, tối đa 10 MB.",
+        );
       try {
         if (fileType(req.file) !== "pdf") throw new Error("Not PDF");
-      } catch { throw new ApiError(422, "INVALID_CV", "CV cần là tệp PDF hợp lệ, tối đa 10 MB."); }
+      } catch {
+        throw new ApiError(
+          422,
+          "INVALID_CV",
+          "CV cần là tệp PDF hợp lệ, tối đa 10 MB.",
+        );
+      }
       if (!body.message) body.message = "Ứng tuyển hợp tác Creator";
     }
-    if (req.file && req.file.originalname.length > 255) throw new ApiError(422, "INVALID_ATTACHMENT_NAME", "Tên tệp tối đa 255 ký tự.");
+    if (req.file && req.file.originalname.length > 255)
+      throw new ApiError(
+        422,
+        "INVALID_ATTACHMENT_NAME",
+        "Tên tệp tối đa 255 ký tự.",
+      );
     const id = randomUUID();
     let attachment_path: string | null = null;
     if (req.file) {
@@ -112,15 +150,13 @@ publicLeadRoutes.post(
     }
     try {
       await result(
-        db
-          .from("leads")
-          .insert({
-            ...body,
-            id,
-            attachment_path,
-            attachment_name: req.file?.originalname ?? null,
-            attachment_size: req.file?.size ?? null,
-          }),
+        db.from("leads").insert({
+          ...body,
+          id,
+          attachment_path,
+          attachment_name: req.file?.originalname ?? null,
+          attachment_size: req.file?.size ?? null,
+        }),
       );
     } catch (error) {
       if (attachment_path)
@@ -129,16 +165,20 @@ publicLeadRoutes.post(
     }
     try {
       const notified = await notifyIntake({ ...body, id });
-      if (!notified) console.warn(`[intake-email] SMTP is not configured; saved intake ${id} remains available in Admin.`);
+      if (!notified)
+        console.warn(
+          `[intake-email] SMTP is not configured; saved intake ${id} remains available in Admin.`,
+        );
     } catch (error) {
-      console.error(`[intake-email] Could not notify Admin for saved intake ${id}:`, error instanceof Error ? error.message : "SMTP error");
+      console.error(
+        `[intake-email] Could not notify Admin for saved intake ${id}:`,
+        error instanceof Error ? error.message : "SMTP error",
+      );
     }
-    res
-      .status(201)
-      .json({
-        success: true,
-        data: { message: "MediaHub đã nhận thông tin của bạn." },
-      });
+    res.status(201).json({
+      success: true,
+      data: { message: "MediaHub đã nhận thông tin của bạn." },
+    });
   },
 );
 

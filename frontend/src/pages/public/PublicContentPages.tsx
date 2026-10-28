@@ -63,10 +63,14 @@ export function PartnersPage({ embedded = false }: { embedded?: boolean }) {
                   loading="lazy"
                 />
               )}
-              <h2><Link to={`/partners/${partner.id}`}>{partner.name}</Link></h2>
+              <h2>
+                <Link to={`/partners/${partner.id}`}>{partner.name}</Link>
+              </h2>
               <p>{partner.industry}</p>
               <p>{partner.description}</p>
-              <Link className="btn btn-ghost" to={`/partners/${partner.id}`}>Xem thông tin đối tác →</Link>
+              <Link className="btn btn-ghost" to={`/partners/${partner.id}`}>
+                Xem thông tin đối tác →
+              </Link>
               {partner.website && (
                 <a
                   href={partner.website}

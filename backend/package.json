@@ -8,21 +8,19 @@
     "build": "tsc",
     "start": "node dist/server.mjs",
     "test": "npm run build && node --test test/*.test.mjs",
-    "prisma:generate": "prisma generate",
-    "prisma:pull": "prisma db pull",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
+    "format": "prettier --write \"src/**/*.{ts,mts}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,mts}\"",
     "db:check": "npm run build && node scripts/check-migrations.mjs",
+    "db:audit": "npm run build && node scripts/schema-inventory.mjs",
     "db:migrate": "npm run build && node scripts/migrate.mjs --apply",
     "db:seed-demo": "npm run build && node scripts/seed-demo.mjs --apply",
     "db:test-accounts": "npm run build && node scripts/provision-test-accounts.mjs --apply",
     "db:verify-test-accounts": "npm run build && node scripts/verify-test-accounts.mjs"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "^7.10.0",
-    "@prisma/client": "^7.10.0",
-    "@supabase/server": "^1.6.0",
-    "@supabase/supabase-js": "^2.57.0",
+    "@supabase/supabase-js": "^2.116.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
@@ -31,7 +29,6 @@
     "multer": "^2.0.2",
     "nodemailer": "^10.0.15",
     "pg": "^8.23.0",
-    "postgres": "^3.4.9",
     "zod": "^4.1.5"
   },
   "devDependencies": {
@@ -39,16 +36,10 @@
     "@types/express": "^5.0.3",
     "@types/multer": "^2.0.0",
     "@types/node": "^22.18.0",
-    "@types/pg": "^8.23.1",
     "eslint": "^10.10.0",
     "prettier": "^3.9.6",
-    "prisma": "^7.10.0",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.70.0"
-  },
-  "overrides": {
-    "deepmerge-ts": "8.0.2",
-    "mysql2": "3.24.4"
   }
 }

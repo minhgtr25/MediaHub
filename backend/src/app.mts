@@ -1,6 +1,12 @@
-import { serviceChatRoutes } from "./service-chat-routes.js";
-import { supportRoutes } from './support-routes.js';
-import { paymentRoutes } from './payment-routes.js';
+﻿import { serviceChatRoutes } from "./service-chat-routes.js";
+import { legacyProjectRoutes } from "./legacy-project-routes.js";
+import { legacyAdminRoutes } from "./legacy-admin-routes.js";
+import { ownedProject, projectAction } from "./legacy-project-utils.js";
+import { publicCatalogRoutes } from "./public-catalog-routes.js";
+import { adminResourceRoutes } from "./admin-resource-routes.js";
+import { notificationRoutes } from "./notification-routes.js";
+import { supportRoutes } from "./support-routes.js";
+import { paymentRoutes } from "./payment-routes.js";
 import { quotationRoutes } from "./quotation-routes.js";
 import { seoRoutes } from "./seo-routes.js";
 import { fileType } from "./file-validation.js";
@@ -18,18 +24,10 @@ import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { db, result, ApiError } from "./db.js";
 import { authenticate, requireRole } from "./middleware.js";
-import { canAccess, isCustomerRole, customerRoles, commerceRoles } from "./domain.js";
-import {
-  uuid,
-  projectSchema,
-  quoteSchema,
-  reviewSchema,
-  revisionSchema,
-  statusSchema,
-  resources,
-} from "./validators.js";
-import type { Json } from "./models/database.types.js";
+import { customerRoles, commerceRoles } from "./domain.js";
+import { uuid } from "./validators.js";
 import { env } from "./config/database.js";
+import { send } from "./utils/response.js";
 import { adminAccountRoutes } from "./admin-account-routes.js";
 import { publicContentRoutes, adminContentRoutes } from "./content-routes.js";
 import { customerRoutes, communicationRoutes } from "./customer-routes.js";
@@ -39,14 +37,20 @@ import { creatorRoutes } from "./creator-routes.js";
 import { messagingRoutes } from "./messaging-routes.js";
 import { executionRoutes } from "./execution-routes.js";
 import { variationRoutes } from "./order-variation-routes.js";
-import { orderRoutes } from "./request-commerce-routes.js";
+import { orderRoutes } from "./order-routes.js";
 import { creatorWorkspaceRoutes } from "./creator-team-routes.js";
 import { creatorOnboardingRoutes } from "./creator-onboarding-routes.js";
 import { financeRoutes } from "./finance-routes.js";
 import { companyPortfolioRoutes } from "./company-portfolio-routes.js";
-import { orderFeedbackRoutes, caseStudyAdminRoutes, publicFeedbackRoutes } from "./order-feedback-routes.js";
+import {
+  orderFeedbackRoutes,
+  caseStudyAdminRoutes,
+  publicFeedbackRoutes,
+} from "./order-feedback-routes.js";
 import { deliveryRoutes } from "./delivery-routes.js";
-import { requestRoutes, publicPackageRoutes, adminPackageRoutes } from "./request-routes.js";
+import { requestRoutes } from "./request-routes.js";
+import { publicServiceRoutes } from "./public-service-routes.js";
+import { adminServicePackageRoutes } from "./admin-service-package-routes.js";
 export const app = express();
 export default app;
 app.set("trust proxy", env.TRUST_PROXY_HOPS);
@@ -59,15 +63,15 @@ app.use("/api/public", (req, res, next) => {
   next();
 });
 export const apiLimiter = rateLimit({
-    windowMs: 60000,
-    limit: 180,
-    standardHeaders: "draft-8",
-    legacyHeaders: false,
-    message: {
-      success: false,
-      error: { code: "RATE_LIMIT", message: "Vui lòng thử lại sau." },
-    },
-  });
+  windowMs: 60000,
+  limit: 180,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: { code: "RATE_LIMIT", message: "Vui lòng thử lại sau." },
+  },
+});
 app.use(
   helmet(),
   cors({ origin: env.CORS_ORIGIN }),
@@ -81,77 +85,6 @@ app.use((req, res, next) => {
   );
   next();
 });
-const send = (res: Response, data: unknown) =>
-  res.json({ success: true, data });
-const paging = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  search: z.string().max(100).default(""),
-  status: z
-    .enum([
-      "DRAFT",
-      "SUBMITTED",
-      "REVIEWING",
-      "QUOTATION_SENT",
-      "QUOTATION_ACCEPTED",
-      "IN_PROGRESS",
-      "WAITING_REVIEW",
-      "REVISION",
-      "COMPLETED",
-      "CANCELLED",
-    ])
-    .optional(),
-  service_id: uuid.optional(),
-  from: z.iso.date().optional(),
-  to: z.iso.date().optional(),
-});
-type ListQuery<T> = PromiseLike<{
-  data: T[] | null;
-  error: { code?: string } | null;
-  count: number | null;
-}> & {
-  ilike(column: string, pattern: string): ListQuery<T>;
-  range(from: number, to: number): ListQuery<T>;
-};
-async function list<T>(
-  req: Request,
-  query: ListQuery<T>,
-  searchField?: string,
-) {
-  const f = paging.parse(req.query);
-  if (f.search && searchField)
-    query = query.ilike(searchField, `%${f.search.replace(/[%_]/g, "")}%`);
-  const { data, error, count } = await query.range(
-    (f.page - 1) * f.limit,
-    f.page * f.limit - 1,
-  );
-  if (error)
-    throw new ApiError(500, "DATABASE_ERROR", "Không thể tải dữ liệu.");
-  return { items: data, total: count, page: f.page, limit: f.limit };
-}
-async function owned(req: Request) {
-  const id = uuid.parse(req.params.id);
-  const p = await result(
-    db.from("projects").select("*").eq("id", id).maybeSingle(),
-  );
-  if (
-    !p || p.order_id ||
-    !canAccess(req.identity.role, req.identity.customer_id, p.customer_id)
-  )
-    throw new ApiError(404, "PROJECT_NOT_FOUND", "Không tìm thấy dự án.");
-  return p;
-}
-async function action(req: Request, name: string, payload: Json = {}) {
-  await owned(req);
-  return result(
-    db.rpc("project_action", {
-      actor_id: req.identity.id,
-      pid: uuid.parse(req.params.id),
-      action: name,
-      payload,
-    }),
-  );
-}
 app.get("/api/health", (_req, res) => send(res, { status: "ok" }));
 app.get("/api/ready", async (_req, res) => {
   const { error, status } = await db.from("services").select("id").limit(1);
@@ -164,153 +97,55 @@ app.get("/api/ready", async (_req, res) => {
   }
   send(res, { status: "ready" });
 });
-const catalogFilters = z.object({
-  category: z.string().trim().max(100).optional(),
-  featured: z.enum(["true", "false"]).optional(),
-});
-app.get("/api/public/services", async (req, res) => {
-  const f = catalogFilters.parse(req.query);
-  let query = db
-    .from("services")
-    .select(
-      "id,name,slug,description,category,starting_price,estimated_days,thumbnail_url,featured,features,deliverables,price_max,seo_title,seo_description",
-      { count: "exact" },
-    )
-    .eq("active", true)
-    .order("display_order")
-    .order("created_at", { ascending: false });
-  if (f.category) query = query.eq("category", f.category);
-  if (f.featured) query = query.eq("featured", f.featured === "true");
-  send(res, await list(req, query, "name"));
-});
-app.get("/api/public/portfolio", async (req, res) => {
-  const f = catalogFilters.parse(req.query);
-  let query = db
-    .from("portfolio")
-    .select(
-      "id,slug,title,client,description,category,image_url,featured,created_at,year",
-      { count: "exact" },
-    )
-    .eq("published", true)
-    .order("featured", { ascending: false })
-    .order("created_at", { ascending: false });
-  if (f.category) query = query.eq("category", f.category);
-  if (f.featured) query = query.eq("featured", f.featured === "true");
-  send(res, await list(req, query, "title"));
-});
-app.get("/api/public/testimonials", async (req, res) =>
-  send(
-    res,
-    await list(
-      req,
-      db
-        .from("testimonials")
-        .select("id,content,published_at", { count: "exact" })
-        .eq("status", "APPROVED")
-        .order("published_at", { ascending: false }),
-    ),
-  ),
+app.use("/api/public", publicCatalogRoutes);
+app.use(
+  "/api/public",
+  publicServiceRoutes,
+  publicLeadRoutes,
+  publicContentRoutes,
+  creatorRoutes,
+  publicFeedbackRoutes,
+  companyPortfolioRoutes,
+  seoRoutes,
 );
-app.get("/api/public/home", async (_req, res) => {
-  const client = db as any;
-  const [hero, services, projects, creators, testimonials, partners, projectCount] = await Promise.all([
-    client.from("website_settings").select("title,content,image").eq("key", "hero").eq("published", true).maybeSingle(),
-    client.from("services").select("id,name,slug,description,category,thumbnail_url,starting_price,features").eq("active", true).order("featured", { ascending: false }).order("display_order").limit(6),
-    client.from("portfolio").select("id,slug,title,client,description,category,image_url,year").eq("published", true).order("featured", { ascending: false }).order("created_at", { ascending: false }).limit(4),
-    client.rpc("public_creator_search",{filters:{page:1,limit:4,sort:"recommended"}}),
-    client.from("testimonials").select("id,content,published_at").eq("status", "APPROVED").order("published_at", { ascending: false }).limit(1),
-    client.from("partners").select("id,name,logo,website,description,industry").eq("active", true).order("display_order").limit(8),
-    client.rpc("public_company_portfolio", {portfolio_page:1,portfolio_limit:1,portfolio_search:"",portfolio_category:"",portfolio_kind:"ALL"}),
-  ]);
-  const sources = { hero, services, projects, creators, testimonials, partners, projectCount };
-  for (const [name, response] of Object.entries(sources)) {
-    if (response.error) console.error("Homepage data source failed", name, response.error.code ?? "UNKNOWN");
-  }
-  send(res, {
-    hero: hero.data ?? null,
-    services: services.data ?? [],
-    projects: projects.data ?? [],
-    creators: creators.data?.items ?? [],
-    testimonials: testimonials.data ?? [],
-    partners: partners.data ?? [],
-    stats: {
-      creators: creators.data?.total ?? 0,
-      projects: projectCount.data?.total ?? 0,
-    },
-  });
-});
-app.get("/api/public/portfolio/:id", async (req, res) => {
-  const p = await result(
-    db
-      .from("portfolio")
-      .select(
-        "id,slug,title,client,description,category,image_url,industry,year,duration,challenge,solution,result,gallery,deliverables,seo_title,seo_description",
-      )
-      .eq(
-        uuid.safeParse(req.params.id).success ? "id" : "slug",
-        z
-          .string()
-          .regex(/^[a-z0-9-]+$/)
-          .max(200)
-          .parse(req.params.id),
-      )
-      .eq("published", true)
-      .maybeSingle(),
-  );
-  if (!p) throw new ApiError(404, "NOT_FOUND", "Không tìm thấy dự án.");
-  send(res, p);
-});
-app.use("/api/public", publicPackageRoutes, publicLeadRoutes, publicContentRoutes, creatorRoutes, publicFeedbackRoutes, companyPortfolioRoutes, seoRoutes);
-app.get("/api/public/services/:slug", async (req, res) => {
-  const slug = z
-    .string()
-    .regex(/^[a-z0-9-]+$/)
-    .max(200)
-    .parse(req.params.slug);
-  const service = await result(
-    db
-      .from("services")
-      .select(
-        "id,name,slug,description,category,starting_price,estimated_days,thumbnail_url,featured,features,deliverables,price_max,seo_title,seo_description",
-      )
-      .eq("slug", slug)
-      .eq("active", true)
-      .maybeSingle(),
-  );
-  if (!service) throw new ApiError(404, "NOT_FOUND", "Service not found.");
-  send(res, service);
-});
-app.get("/api/public/partners/:id", async (req, res) => {
-  const partner = await result(db.from("partners").select("id,name,logo,website,description,industry").eq("id", uuid.parse(req.params.id)).eq("active", true).maybeSingle());
-  if (!partner) throw new ApiError(404, "NOT_FOUND", "Đối tác chưa được công bố.");
-  send(res, partner);
-});
 app.use("/api", authenticate);
 app.use("/api/auth", profileRoutes);
-app.use('/api/support', supportRoutes);
-app.use('/api/payments', paymentRoutes);
-app.use('/api/messages', messagingRoutes);
-app.use('/api/requests', requestRoutes);
-app.use('/api/service-chat', serviceChatRoutes);
-app.use('/api/creator/profile', creatorProfileRoutes);
-app.use('/api/creator', creatorWorkspaceRoutes);
-app.use('/api/admin/creators', creatorOnboardingRoutes);
-app.use('/api/finance', financeRoutes);
-app.use('/api/delivery', deliveryRoutes);
-app.use('/api/order-feedback', orderFeedbackRoutes);
-app.use('/api/admin/case-studies', caseStudyAdminRoutes);
-app.use('/api/order-variations', variationRoutes);
-app.use('/api/execution', executionRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/admin/service-packages', adminPackageRoutes);
+app.use("/api/support", supportRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use("/api/messages", messagingRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/requests", requestRoutes);
+app.use("/api/service-chat", serviceChatRoutes);
+app.use("/api/creator/profile", creatorProfileRoutes);
+app.use("/api/creator", creatorWorkspaceRoutes);
+app.use("/api/admin/creators", creatorOnboardingRoutes);
+app.use("/api/finance", financeRoutes);
+app.use("/api/delivery", deliveryRoutes);
+app.use("/api/order-feedback", orderFeedbackRoutes);
+app.use("/api/admin/case-studies", caseStudyAdminRoutes);
+app.use("/api/order-variations", variationRoutes);
+app.use("/api/execution", executionRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/admin/service-packages", adminServicePackageRoutes);
 // Staff have a dedicated support surface. Existing admin/customer APIs stay restricted.
-app.use('/api',(req,_res,next)=>{
- if(req.identity.role==='STAFF' && !/^\/(auth\/me|notifications)(\/|$)/.test(req.path)) return next(new ApiError(403,'FORBIDDEN','Chỉ có quyền truy cập khu vực hỗ trợ.'));
- next();
+app.use("/api", (req, _res, next) => {
+  if (
+    req.identity.role === "STAFF" &&
+    !/^\/(auth\/me|notifications)(\/|$)/.test(req.path)
+  )
+    return next(
+      new ApiError(
+        403,
+        "FORBIDDEN",
+        "Nhân viên chỉ có thể truy cập các API dành riêng cho hỗ trợ.",
+      ),
+    );
+  next();
 });
 app.use("/api/customer", requireRole(customerRoles), customerRoutes);
 app.use("/api/projects", requireRole(commerceRoles));
 app.use("/api/projects", communicationRoutes);
+app.use("/api/projects", legacyProjectRoutes);
 app.get("/api/auth/me", (req, res) => send(res, req.identity));
 app.patch("/api/auth/me", async (req, res) => {
   const body = z
@@ -335,168 +170,13 @@ app.patch("/api/auth/me", async (req, res) => {
     ),
   );
 });
-app.get("/api/notifications", async (req, res) => {
-  const status = z.enum(['ALL','READ','UNREAD']).default('ALL').parse(req.query.status);
-  const search = z.string().max(100).default('').parse(req.query.search).trim();
-  let query = db.from('notifications').select('*', {count:'exact'}).eq('user_id', req.identity.id);
-  if(status==='READ') query=query.not('read_at','is',null);
-  if(status==='UNREAD') query=query.is('read_at',null);
-  if(search) {
-    const pattern = '%' + search.replace(/[\\%_]/g, '\\$&') + '%';
-    const quoted = '"' + pattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
-    query=query.or(`title.ilike.${quoted},message.ilike.${quoted}`);
-  }
-  const page=z.coerce.number().int().min(1).default(1).parse(req.query.page);
-  const limit=z.coerce.number().int().min(1).max(100).default(20).parse(req.query.limit);
-  const {data,error,count}=await query.order('created_at',{ascending:false}).order('id',{ascending:false}).range((page-1)*limit,page*limit-1);
-  if(error) throw new ApiError(500,'DATABASE_ERROR','Không thể tải thông báo.');
-  send(res,{items:data,total:count,page,limit});
-});
-app.patch('/api/notifications/read-all', async (req,res) => {
-  z.object({}).strict().parse(req.body);
-  await result(db.from('notifications').update({read_at:new Date().toISOString()}).eq('user_id',req.identity.id).is('read_at',null));
-  send(res, {success:true});
-});
-app.patch("/api/notifications/:id", async (req, res) => {
-  z.object({}).strict().parse(req.body);
-  send(
-    res,
-    await result(
-      db
-        .from("notifications")
-        .update({ read_at: new Date().toISOString() })
-        .eq("id", uuid.parse(req.params.id))
-        .eq("user_id", req.identity.id)
-        .select()
-        .maybeSingle(),
-    ),
-  );
-});
-app.get("/api/customer/dashboard", requireRole(["CUSTOMER", "BUSINESS"]), async (req, res) =>
-  send(
-    res,
-    await result(db.rpc("dashboard_report", { actor_id: req.identity.id })),
-  ),
-);
-async function projectList(req: Request) {
-  const f = paging.parse(req.query);
-  let q = db
-    .from("projects")
-    .select(
-      "*,customers(company_name,profiles(full_name,email)),project_services!inner(service_id)",
-      { count: "exact" },
-    )
-    .is("order_id", null)
-    .order("created_at", { ascending: false });
-  if (isCustomerRole(req.identity.role))
-    q = q.eq("customer_id", req.identity.customer_id!);
-  if (f.status) q = q.eq("status", f.status);
-  if (f.service_id) q = q.eq("project_services.service_id", f.service_id);
-  if (f.from) q = q.gte("created_at", f.from);
-  if (f.to)
-    q = q.lt(
-      "created_at",
-      new Date(new Date(f.to).getTime() + 86400000).toISOString(),
-    );
-  return list(req, q, "title");
-}
-app.get("/api/projects", async (req, res) => send(res, await projectList(req)));
-app.post("/api/projects", requireRole(["CUSTOMER", "BUSINESS"]), async (req, res) => {
-  const body = projectSchema.parse(req.body);
-  res.status(201);
-  send(
-    res,
-    await result(
-      db.rpc("project_action", {
-        actor_id: req.identity.id,
-        pid: null,
-        action: "create",
-        payload: body,
-      }),
-    ),
-  );
-});
-app.get("/api/projects/:id", async (req, res) => {
-  const p = await owned(req);
-  const tables = [
-    "project_services",
-    "quotations",
-    "project_files",
-    "project_status_history",
-    "deliverables",
-    "revision_requests",
-    "invoices",
-    "reviews",
-  ] as const;
-  const values = await Promise.all(
-    tables.map((t) => {
-      if (t === "quotations") {
-        let q = db
-          .from("quotations")
-          .select("*,quotation_items(*)")
-          .eq("project_id", p.id);
-        if (isCustomerRole(req.identity.role)) q = q.neq("status", "DRAFT");
-        return result(q);
-      }
-      if (t === "invoices") {
-        let q = db.from("invoices").select("*").eq("project_id", p.id);
-        if (isCustomerRole(req.identity.role)) q = q.neq("status", "DRAFT");
-        return result(q);
-      }
-      return result(db.from(t).select("*").eq("project_id", p.id));
-    }),
-  );
-  send(res, {
-    ...p,
-    ...Object.fromEntries(tables.map((t, i) => [t, values[i]])),
-  });
-});
-app.patch("/api/projects/:id", requireRole(["CUSTOMER", "BUSINESS"]), async (req, res) =>
-  send(res, await action(req, "edit", projectSchema.parse(req.body))),
-);
-for (const [path, table] of [
-  ["history", "project_status_history"],
-  ["files", "project_files"],
-  ["deliverables", "deliverables"],
-] as const)
-  app.get(`/api/projects/:id/${path}`, async (req, res) => {
-    await owned(req);
-    send(
-      res,
-      await list(
-        req,
-        db
-          .from(table)
-          .select("*", { count: "exact" })
-          .eq("project_id", req.params.id)
-          .order("created_at", { ascending: true }),
-      ),
-    );
-  });
-for (const [path, name, schema] of [
-  ["accept-quotation", "accept", z.object({}).strict()],
-  ["reject-quotation", "reject", z.object({}).strict()],
-  ["revisions", "revision", revisionSchema],
-  ["complete", "complete", z.object({}).strict()],
-  ["reviews", "review", reviewSchema],
-] as const)
-  app.post(
-    `/api/projects/:id/${path}`,
-    requireRole(["CUSTOMER", "BUSINESS"]),
-    async (req, res) =>
-      send(res, await action(req, name, schema.parse(req.body))),
-  );
-app.post(
-  "/api/projects/:id/approve-deliverable",
+app.get(
+  "/api/customer/dashboard",
   requireRole(["CUSTOMER", "BUSINESS"]),
   async (req, res) =>
     send(
       res,
-      await action(
-        req,
-        "approve-deliverable",
-        z.object({ deliverable_id: uuid }).strict().parse(req.body),
-      ),
+      await result(db.rpc("dashboard_report", { actor_id: req.identity.id })),
     ),
 );
 app.use("/api/admin", requireRole("ADMIN"));
@@ -506,404 +186,9 @@ app.use(
   adminContentRoutes,
   adminAccountRoutes,
   quotationRoutes,
+  adminResourceRoutes,
+  legacyAdminRoutes,
 );
-app.post("/api/admin/projects/:id/issue-invoice", async (req, res) =>
-  send(
-    res,
-    await action(
-      req,
-      "issue-invoice",
-      z.object({ due_date: z.iso.date() }).strict().parse(req.body),
-    ),
-  ),
-);
-app.patch("/api/admin/projects/:id/revisions/:revisionId", async (req, res) =>
-  send(
-    res,
-    await action(req, "revision-status", {
-      ...z
-        .object({ status: z.enum(["IN_PROGRESS", "RESOLVED", "CANCELLED"]) })
-        .strict()
-        .parse(req.body),
-      revision_id: uuid.parse(req.params.revisionId),
-    }),
-  ),
-);
-app.get("/api/admin/quotations", async (req, res) =>
-  send(
-    res,
-    await list(
-      req,
-      db
-        .from("quotations")
-        .select("*,projects(title),quotation_items(*)", { count: "exact" })
-        .not("project_id", "is", null)
-        .order("created_at", { ascending: false }),
-    ),
-  ),
-);
-app.get("/api/admin/invoices/:id", async (req, res) => {
-  const data = await result(
-    db
-      .from("invoices")
-      .select("*,projects(title)")
-      .eq("id", uuid.parse(req.params.id))
-      .maybeSingle(),
-  );
-  if (!data) throw new ApiError(404, "NOT_FOUND", "Invoice not found.");
-  send(res, data);
-});
-
-app.patch("/api/admin/projects/:id", async (req, res) => {
-  await owned(req);
-  const body = z
-    .object({
-      title: z.string().trim().min(1).max(200),
-      description: z.string().trim().min(1).max(5000),
-      scope: z.string().max(10000),
-      progress: z.number().int().min(0).max(100),
-      deadline: z.iso.date().nullable(),
-    })
-    .strict()
-    .parse(req.body);
-  send(
-    res,
-    await result(
-      db.rpc("edit_project", {
-        actor_id: req.identity.id,
-        pid: uuid.parse(req.params.id),
-        payload: body,
-      }),
-    ),
-  );
-});
-app.get("/api/admin/files", async (req, res) => {
-  const kind = z
-    .enum(["files", "deliverables"])
-    .default("files")
-    .parse(req.query.kind);
-  send(
-    res,
-    await list<unknown>(
-      req,
-      kind === "files"
-        ? db
-            .from("project_files")
-            .select("id,project_id,file_name,file_type,file_size,created_at", {
-              count: "exact",
-            })
-            .order("created_at", { ascending: false })
-        : db
-            .from("deliverables")
-            .select("id,project_id,name,version,status,created_at", {
-              count: "exact",
-            })
-            .order("created_at", { ascending: false }),
-    ),
-  );
-});
-app.get("/api/admin/projects", async (req, res) =>
-  send(res, await projectList(req)),
-);
-for (const path of ["dashboard", "revenue"])
-  app.get(`/api/admin/${path}`, async (req, res) =>
-    send(
-      res,
-      await result(db.rpc("dashboard_report", { actor_id: req.identity.id })),
-    ),
-  );
-app.get("/api/admin/customers", async (req, res) =>
-  send(
-    res,
-    await list(
-      req,
-      db
-        .from("customers")
-        .select("*,profiles!inner(full_name,email,role)", { count: "exact" })
-        .in("profiles.role", customerRoles)
-        .order("created_at", { ascending: false }),
-      "company_name",
-    ),
-  ),
-);
-app.get("/api/admin/customers/:id", async (req, res) => {
-  const id = uuid.parse(req.params.id);
-  send(res, {
-    customer: await result(
-      db
-        .from("customers")
-        .select("*,profiles(full_name,email,phone)")
-        .eq("id", id)
-        .single(),
-    ),
-    projects: await list(
-      req,
-      db
-        .from("projects")
-        .select("*", { count: "exact" })
-        .eq("customer_id", id)
-        .order("created_at", { ascending: false }),
-    ),
-  });
-});
-app.get("/api/admin/invoices", async (req, res) =>
-  send(
-    res,
-    await list(
-      req,
-      db
-        .from("invoices")
-        .select("*,projects(title)", { count: "exact" })
-        .order("issued_at", { ascending: false }),
-    ),
-  ),
-);
-app.patch("/api/admin/projects/:id/status", async (req, res) =>
-  send(res, await action(req, "status", statusSchema.parse(req.body))),
-);
-app.post("/api/admin/projects/:id/paid", async (req, res) =>
-  send(res, await action(req, "paid", z.object({}).strict().parse(req.body))),
-);
-app.get("/api/admin/employees/:id", async (req, res) => {
-  const data = await result(
-    db
-      .from("employees")
-      .select("*")
-      .eq("id", uuid.parse(req.params.id))
-      .maybeSingle(),
-  );
-  if (!data) throw new ApiError(404, "NOT_FOUND", "Record not found.");
-  send(res, data);
-});
-app.get("/api/admin/employees", async (req, res) =>
-  send(
-    res,
-    await list(
-      req,
-      db
-        .from("employees")
-        .select("*", { count: "exact" })
-        .order("created_at", { ascending: false }),
-      "name",
-    ),
-  ),
-);
-app.post("/api/admin/employees", async (req, res) => {
-  const body = resources.employees.strict().parse(req.body);
-  send(
-    res,
-    await result(
-      db
-        .from("employees")
-        .insert({ ...body })
-        .select()
-        .single(),
-    ),
-  );
-});
-app.patch("/api/admin/employees/:id", async (req, res) => {
-  const body = resources.employees.partial().strict().parse(req.body);
-  send(
-    res,
-    await result(
-      db
-        .from("employees")
-        .update({ ...body })
-        .eq("id", uuid.parse(req.params.id))
-        .select()
-        .single(),
-    ),
-  );
-});
-app.delete("/api/admin/employees/:id", async (req, res) => {
-  await result(
-    db.from("employees").delete().eq("id", uuid.parse(req.params.id)),
-  );
-  send(res, { deleted: true });
-});
-app.get("/api/admin/services/:id", async (req, res) => {
-  const data = await result(
-    db
-      .from("services")
-      .select("*")
-      .eq("id", uuid.parse(req.params.id))
-      .maybeSingle(),
-  );
-  if (!data) throw new ApiError(404, "NOT_FOUND", "Record not found.");
-  send(res, data);
-});
-app.get("/api/admin/services", async (req, res) =>
-  send(
-    res,
-    await list(
-      req,
-      db
-        .from("services")
-        .select("*", { count: "exact" })
-        .order("created_at", { ascending: false }),
-      "name",
-    ),
-  ),
-);
-app.post("/api/admin/services", async (req, res) => {
-  const body = resources.services.strict().parse(req.body);
-  send(
-    res,
-    await result(
-      db
-        .from("services")
-        .insert({ ...body })
-        .select()
-        .single(),
-    ),
-  );
-});
-app.patch("/api/admin/services/:id", async (req, res) => {
-  const body = resources.services.partial().strict().parse(req.body);
-  send(
-    res,
-    await result(
-      db
-        .from("services")
-        .update({ ...body })
-        .eq("id", uuid.parse(req.params.id))
-        .select()
-        .single(),
-    ),
-  );
-});
-app.delete("/api/admin/services/:id", async (req, res) => {
-  await result(
-    db.from("services").delete().eq("id", uuid.parse(req.params.id)),
-  );
-  send(res, { deleted: true });
-});
-app.get("/api/admin/portfolio/:id", async (req, res) => {
-  const data = await result(
-    db
-      .from("portfolio")
-      .select("*")
-      .eq("id", uuid.parse(req.params.id))
-      .maybeSingle(),
-  );
-  if (!data) throw new ApiError(404, "NOT_FOUND", "Record not found.");
-  send(res, data);
-});
-app.get("/api/admin/portfolio", async (req, res) =>
-  send(
-    res,
-    await list(
-      req,
-      db
-        .from("portfolio")
-        .select("*", { count: "exact" })
-        .order("created_at", { ascending: false }),
-      "title",
-    ),
-  ),
-);
-app.post("/api/admin/portfolio", async (req, res) => {
-  const body = resources.portfolio.strict().parse(req.body);
-  send(
-    res,
-    await result(
-      db
-        .from("portfolio")
-        .insert({ ...body })
-        .select()
-        .single(),
-    ),
-  );
-});
-app.patch("/api/admin/portfolio/:id", async (req, res) => {
-  const body = resources.portfolio.partial().strict().parse(req.body);
-  send(
-    res,
-    await result(
-      db
-        .from("portfolio")
-        .update({ ...body })
-        .eq("id", uuid.parse(req.params.id))
-        .select()
-        .single(),
-    ),
-  );
-});
-app.delete("/api/admin/portfolio/:id", async (req, res) => {
-  await result(
-    db.from("portfolio").delete().eq("id", uuid.parse(req.params.id)),
-  );
-  send(res, { deleted: true });
-});
-app.get("/api/admin/testimonials/:id", async (req, res) => {
-  const data = await result(
-    db
-      .from("testimonials")
-      .select("*")
-      .eq("id", uuid.parse(req.params.id))
-      .maybeSingle(),
-  );
-  if (!data) throw new ApiError(404, "NOT_FOUND", "Record not found.");
-  send(res, data);
-});
-app.get("/api/admin/testimonials", async (req, res) =>
-  send(
-    res,
-    await list(
-      req,
-      db
-        .from("testimonials")
-        .select("*", { count: "exact" })
-        .order("published_at", { ascending: false }),
-      "content",
-    ),
-  ),
-);
-app.post("/api/admin/testimonials", async (req, res) => {
-  const body = resources.testimonials.strict().parse(req.body);
-  send(
-    res,
-    await result(
-      db
-        .from("testimonials")
-        .insert({
-          ...body,
-          published_at:
-            body.status === "APPROVED" ? new Date().toISOString() : null,
-        })
-        .select()
-        .single(),
-    ),
-  );
-});
-app.patch("/api/admin/testimonials/:id", async (req, res) => {
-  const body = resources.testimonials.partial().strict().parse(req.body);
-  send(
-    res,
-    await result(
-      db
-        .from("testimonials")
-        .update({
-          ...body,
-          ...(body.status
-            ? {
-                published_at:
-                  body.status === "APPROVED" ? new Date().toISOString() : null,
-              }
-            : {}),
-        })
-        .eq("id", uuid.parse(req.params.id))
-        .select()
-        .single(),
-    ),
-  );
-});
-app.delete("/api/admin/testimonials/:id", async (req, res) => {
-  await result(
-    db.from("testimonials").delete().eq("id", uuid.parse(req.params.id)),
-  );
-  send(res, { deleted: true });
-});
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024, files: 1, fields: 0 },
@@ -913,7 +198,7 @@ for (const [path, bucket, name] of [
   ["/api/admin/projects/:id/deliverables", "deliverables", "deliverable"],
 ] as const)
   app.post(path, upload.single("file"), async (req, res) => {
-    const p = await owned(req);
+    const p = await ownedProject(req);
     if (bucket === "deliverables" && req.identity.role !== "ADMIN")
       throw new ApiError(403, "FORBIDDEN", "Không có quyền tải lên.");
     if (!req.file)
@@ -926,7 +211,7 @@ for (const [path, bucket, name] of [
         .upload(path, req.file.buffer, { contentType: req.file.mimetype }),
     );
     try {
-      await action(req, name, {
+      await projectAction(req, name, {
         name: req.file.originalname,
         path,
         type: req.file.mimetype,
@@ -939,7 +224,7 @@ for (const [path, bucket, name] of [
     send(res, { path });
   });
 app.get("/api/projects/:id/download/:kind/:fileId", async (req, res) => {
-  await owned(req);
+  await ownedProject(req);
   const kind = z.enum(["files", "deliverables"]).parse(req.params.kind);
   const row = await result(
     db
@@ -959,7 +244,11 @@ app.get("/api/projects/:id/download/:kind/:fileId", async (req, res) => {
     ),
   );
 });
-app.post("/api/admin/media", upload.single("file"), async (req, res) => {
+const mediaUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 0 },
+});
+app.post("/api/admin/media", mediaUpload.single("file"), async (req, res) => {
   if (!req.file) throw new ApiError(422, "FILE_REQUIRED", "Vui lòng chọn ảnh.");
   const ext = fileType(req.file);
   if (!req.file.mimetype.startsWith("image/"))

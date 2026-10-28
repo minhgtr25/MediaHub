@@ -1,9 +1,12 @@
 import { useId, useRef, useState, type ReactNode, type FormEvent } from "react";
 import { useApi } from "../hooks/useApi";
 export const money = (value: number) =>
-  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(
-    value ?? 0,
-  );
+  new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(value ?? 0);
 export const labels: Record<string, string> = {
   DRAFT: "Bản nháp",
   SUBMITTED: "Đã gửi",
@@ -46,13 +49,24 @@ export const labels: Record<string, string> = {
   QUOTE_REVISION: "Đang chỉnh báo giá",
   READY_TO_ORDER: "Sẵn sàng đặt dịch vụ",
   CONVERTED: "Đã chuyển thành đơn dịch vụ",
-  PROPOSED: "Đã đề xuất", SHORTLISTED: "Đang cân nhắc", SELECTED: "Đã chọn", WITHDRAWN: "Đã thu hồi",
-  VIEWED: "Đã xem", REVISION_REQUESTED: "Khách yêu cầu chỉnh", WAITING_CONTRACT: "Chờ hợp đồng",
+  PROPOSED: "Đã đề xuất",
+  SHORTLISTED: "Đang cân nhắc",
+  SELECTED: "Đã chọn",
+  WITHDRAWN: "Đã thu hồi",
+  VIEWED: "Đã xem",
+  REVISION_REQUESTED: "Khách yêu cầu chỉnh",
+  WAITING_CONTRACT: "Chờ hợp đồng",
   ACKNOWLEDGED: "Đã xác nhận điều khoản",
   AWAITING_VERIFICATION: "Chờ Admin đối soát",
-  PLANNING: "Đang lập kế hoạch", READY: "Sẵn sàng thực hiện", ON_HOLD: "Tạm dừng",
-  READY_TO_DELIVER: "Đã nghiệm thu · chờ bàn giao", DELIVERED: "Đã bàn giao",
-  WAITING_PAYMENT: "Chờ thanh toán", CONFIRMED: "Đã xác nhận", WAITING_ACCEPTANCE: "Chờ thu đủ và bàn giao", REFUNDED: "Đã hoàn tiền",
+  PLANNING: "Đang lập kế hoạch",
+  READY: "Sẵn sàng thực hiện",
+  ON_HOLD: "Tạm dừng",
+  READY_TO_DELIVER: "Đã nghiệm thu · chờ bàn giao",
+  DELIVERED: "Đã bàn giao",
+  WAITING_PAYMENT: "Chờ thanh toán",
+  CONFIRMED: "Đã xác nhận",
+  WAITING_ACCEPTANCE: "Chờ thu đủ và bàn giao",
+  REFUNDED: "Đã hoàn tiền",
 };
 export const Status = ({ value }: { value: string }) => (
   <span className="status">{labels[value] ?? value}</span>
@@ -70,13 +84,19 @@ export function State({
         Đang tải dữ liệu…
       </div>
     );
-  return <>
-    {query.error && <div className="panel error" role="alert">
-      {query.error}
-      <button className="btn btn-ghost" onClick={query.reload}>Thử lại</button>
-    </div>}
-    {(!query.error || query.data !== null) && children}
-  </>;
+  return (
+    <>
+      {query.error && (
+        <div className="panel error" role="alert">
+          {query.error}
+          <button className="btn btn-ghost" onClick={query.reload}>
+            Thử lại
+          </button>
+        </div>
+      )}
+      {(!query.error || query.data !== null) && children}
+    </>
+  );
 }
 export function Page({
   title,
@@ -169,10 +189,10 @@ export function Field({
   const fieldId = useId();
   return (
     <div className="field">
-        <label htmlFor={fieldId}>{label}</label>
+      <label htmlFor={fieldId}>{label}</label>
       {type === "textarea" ? (
         <textarea
-            id={fieldId}
+          id={fieldId}
           name={name}
           defaultValue={value}
           required={required}
@@ -180,7 +200,7 @@ export function Field({
         />
       ) : (
         <input
-            id={fieldId}
+          id={fieldId}
           name={name}
           type={type}
           defaultValue={value}

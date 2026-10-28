@@ -6,6 +6,8 @@ dist/
 !.env.example
 *.tsbuildinfo
 *.log
+test-results/
+playwright-report/
 
 # Locally installed agent skills
 /frontend/.agents/

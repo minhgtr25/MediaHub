@@ -1,4 +1,20 @@
-import { ArrowRight, BadgeCheck, Camera, Check, CircleDollarSign, Clock3, Code2, Film, Megaphone, Palette, Play, Search, ShieldCheck, Sparkles, Star, Users, Video } from "lucide-react";
+import { avatarPlaceholder } from "../../lib/avatar";
+import {
+  ArrowRight,
+  BadgeCheck,
+  Camera,
+  CircleDollarSign,
+  Clock3,
+  Code2,
+  Film,
+  Megaphone,
+  Palette,
+  Play,
+  Search,
+  ShieldCheck,
+  Star,
+  Video,
+} from "lucide-react";
 import { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { State } from "../../components/ui";
@@ -7,32 +23,360 @@ import { CompanyPortfolio } from "../../components/CompanyPortfolio";
 import { ServiceProcess } from "../../components/ServiceProcess";
 import { LandingAudiences } from "../../components/LandingAudiences";
 
-type Project={id:string;slug:string;title:string;client:string;description:string;category:string;image_url:string;year:number};
-type Service={id:string;name:string;slug:string;description:string;category:string;starting_price:number;features:string[]};
-type Creator={id:string;slug:string;display_name:string;title:string;avatar_url:string;location:string;rating:number|null;completed_projects:number;verified:boolean;creator_skills:{skills:{id:string;name:string}}[]};
-type HomeData={hero:{title:string;content:string;image:string}|null;services:Service[];projects:Project[];creators:Creator[];testimonials:{id:string;content:string}[];partners:{id:string;name:string;logo:string;website:string}[];stats:{creators:number;projects:number}};
-const emptyHome: HomeData = { hero: null, services: [], projects: [], creators: [], testimonials: [], partners: [], stats: { creators: 0, projects: 0 } };
-const serviceIcons=[Camera,Video,Megaphone,Palette,Code2,Film];
+type Project = {
+  id: string;
+  slug: string;
+  title: string;
+  client: string;
+  description: string;
+  category: string;
+  image_url: string;
+  year: number;
+};
+type Service = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  category: string;
+  starting_price: number;
+  features: string[];
+};
+type Creator = {
+  id: string;
+  slug: string;
+  display_name: string;
+  title: string;
+  avatar_url: string;
+  location: string;
+  rating: number | null;
+  completed_projects: number;
+  verified: boolean;
+  creator_skills: { skills: { id: string; name: string } }[];
+};
+type HomeData = {
+  hero: { title: string; content: string; image: string } | null;
+  services: Service[];
+  projects: Project[];
+  creators: Creator[];
+  testimonials: { id: string; content: string }[];
+  partners: { id: string; name: string; logo: string; website: string }[];
+  stats: { creators: number; projects: number };
+};
+const emptyHome: HomeData = {
+  hero: null,
+  services: [],
+  projects: [],
+  creators: [],
+  testimonials: [],
+  partners: [],
+  stats: { creators: 0, projects: 0 },
+};
+const serviceIcons = [Camera, Video, Megaphone, Palette, Code2, Film];
 
-export function HomePage(){const query=useApi<HomeData>("/public/home"),filters=useApi<{categories:{id:string;name:string;slug:string}[]}>("/public/creators/filters"),navigate=useNavigate();const data=query.data ?? emptyHome;
- function search(e:FormEvent<HTMLFormElement>){
-  e.preventDefault();
-  const form=new FormData(e.currentTarget),params=new URLSearchParams();
-  for(const key of ["search","category","location","experience"]){const value=String(form.get(key)||"").trim();if(value)params.set(key,value)}
-  navigate(`/creators${params.size?`?${params}`:""}`)
- }
- return <main className="stitch-home">
-  <section className="home-hero"><div className="home-hero-copy"><div className="managed-badge"><i/> MẠNG LƯỚI SÁNG TẠO MEDIAHUB <span/> Staff đồng hành cùng dự án</div><h1>Kết nối doanh nghiệp<br/>với <span>tài năng sáng tạo</span></h1><p>{data.hero?.content||"MediaHub kết nối doanh nghiệp với những creator trẻ tài năng, đồng thời mang đến cơ hội thực chiến và tạo ra sản phẩm truyền thông hiệu quả."}</p><small><b>THỰC CHIẾN</b> · CHẤT LƯỢNG · HIỆU QUẢ</small><div className="home-actions"><Link className="btn btn-primary" to="/request-project">Yêu cầu tư vấn <ArrowRight/></Link><Link className="btn btn-ghost" to="/projects"><Play/> Xem dự án nổi bật</Link></div><State query={query}><div className="social-proof"><div>{data.creators.slice(0,4).map(c=><img key={c.id} src={c.avatar_url} alt=""/> )}</div><p><b>{data.stats.creators.toLocaleString("vi-VN")} Creator trong mạng lưới</b><span>{data.stats.projects.toLocaleString("vi-VN")} case study đã công bố</span></p></div></State></div>
-  <div className="home-brand-stage"><img className="brand-hero-art" src="/assets/brand/mediahub-hero.png" alt="Biểu tượng MediaHub 3D trên bệ, cùng các lĩnh vực sáng tạo nội dung, video, marketing và thiết kế" width="1448" height="1086" fetchPriority="high"/></div></section>
-  <form className="home-search-dock" onSubmit={search}><label><Search/><input name="search" placeholder="Tìm kỹ năng hoặc tên Creator…"/></label><select name="category" aria-label="Chuyên môn"><option value="">Mọi chuyên môn</option>{filters.data?.categories.map(c=><option key={c.id} value={c.slug}>{c.name}</option>)}</select><select name="location" aria-label="Khu vực"><option value="">Toàn quốc / Remote</option><option value="Hà Nội">Hà Nội</option><option value="Hồ Chí Minh">TP. Hồ Chí Minh</option></select><select name="experience" aria-label="Kinh nghiệm"><option value="">Mọi cấp độ</option><option value="JUNIOR">Junior</option><option value="SENIOR">Senior</option><option value="LEAD">Lead</option></select><button aria-label="Tìm kiếm Creator"><Search/></button></form>
-  <section className="home-trust-strip">{[[ShieldCheck,"Creator chất lượng","Được tuyển chọn, kiểm tra portfolio"],[Palette,"Quy trình chuyên nghiệp","MediaHub quản lý từ brief đến nghiệm thu"],[CircleDollarSign,"Chi phí hợp lý","Tối ưu ngân sách doanh nghiệp"],[Clock3,"Hỗ trợ tận tâm","Luôn đồng hành trong suốt dự án"]].map(([Icon,title,desc])=><article key={String(title)}><span><Icon/></span><div><b>{title as string}</b><small>{desc as string}</small></div></article>)}</section>
-  <CompanyPortfolio compact/>
-  <ServiceProcess embedded />
-  <section className="home-section"><SectionHeading centered eyebrow="DỊCH VỤ CỦA CHÚNG TÔI" title={<>Giải pháp truyền thông <em>toàn diện</em> cho doanh nghiệp</>} description="Được triển khai bởi tập thể creator trẻ giàu nhiệt huyết, dưới sự quản lý chuyên nghiệp."/><State query={query}><div className="home-service-grid">{data.services.map((s,i)=>{const Icon=serviceIcons[i%serviceIcons.length];return <Link key={s.id} to={`/services/${s.slug}`}><span className={`service-icon s${i}`}><Icon/></span><h3>{s.name}</h3><p>{s.description}</p><b>Xem chi tiết dịch vụ <ArrowRight/></b></Link>})}</div></State></section>
-  <section className="home-stats"><State query={query}>{[[data.stats.creators,"Creator trong mạng lưới"],[data.stats.projects,"Case study đã công bố"]].map(([number,label])=><div key={label}><strong>{Number(number).toLocaleString("vi-VN")}</strong><span>{label}</span></div>)}</State></section>
-  <section className="home-section creators-section"><SectionHeading eyebrow="MEDIAHUB SELECTED TALENT" title="Những Creator trẻ đang tạo dấu ấn" description="Khám phá hồ sơ, chuyên môn và portfolio để tìm creator phù hợp." action={<Link to="/creators">Khám phá đội ngũ <ArrowRight/></Link>}/><State query={query}><div className="home-creators-grid">{data.creators.map(c=><Link to={`/creators/${c.slug}`} key={c.id}><div className="creator-photo"><img src={c.avatar_url||`https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(c.display_name)}`} alt={`Ảnh đại diện ${c.display_name}`}/>{c.verified&&<BadgeCheck/>}</div><h3>{c.display_name}</h3><p>{c.title}</p><div>{c.creator_skills.slice(0,3).map(x=><span key={x.skills.id}>{x.skills.name}</span>)}</div><footer><b><Star/> {c.rating||"Mới"}</b><span>{c.completed_projects} dự án</span></footer></Link>)}</div></State></section>
-  <LandingAudiences/>
-  <section className="home-section home-partner-panel"><div className="home-partner-list"><header><h2>Đối tác MediaHub</h2><Link to="/partners">Xem thông tin đối tác <ArrowRight/></Link></header><State query={query}><div className="partner-logo-grid">{data.partners.length?data.partners.map(p=><Link key={p.id} to={`/partners/${p.id}`} aria-label={`Xem thông tin đối tác ${p.name}`}>{p.logo?<img src={p.logo} alt={p.name} loading="lazy"/>:<strong>{p.name}</strong>}</Link>):<p>Thông tin đối tác sẽ được cập nhật.</p>}</div></State></div><div className="home-testimonial"><h2>Khách hàng nói về chúng tôi</h2><State query={query}>{data.testimonials[0]?<blockquote><span className="testimonial-quote" aria-hidden="true">“</span><p>{data.testimonials[0].content}</p><footer>Phản hồi đã công bố</footer></blockquote>:<p className="muted">Phản hồi khách hàng sẽ được cập nhật sau khi dự án hoàn thành.</p>}</State></div></section>
- </main>}
+export function HomePage() {
+  const query = useApi<HomeData>("/public/home"),
+    filters = useApi<{
+      categories: { id: string; name: string; slug: string }[];
+    }>("/public/creators/filters"),
+    navigate = useNavigate();
+  const data = query.data ?? emptyHome;
+  function search(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget),
+      params = new URLSearchParams();
+    for (const key of ["search", "category", "location", "experience"]) {
+      const value = String(form.get(key) || "").trim();
+      if (value) params.set(key, value);
+    }
+    navigate(`/creators${params.size ? `?${params}` : ""}`);
+  }
+  return (
+    <main className="stitch-home">
+      <section className="home-hero">
+        <div className="home-hero-copy">
+          <div className="managed-badge">
+            <i /> MẠNG LƯỚI SÁNG TẠO MEDIAHUB <span /> Staff đồng hành cùng dự
+            án
+          </div>
+          <h1>
+            Kết nối doanh nghiệp
+            <br />
+            với <span>tài năng sáng tạo</span>
+          </h1>
+          <p>
+            {data.hero?.content ||
+              "MediaHub kết nối doanh nghiệp với những creator trẻ tài năng, đồng thời mang đến cơ hội thực chiến và tạo ra sản phẩm truyền thông hiệu quả."}
+          </p>
+          <small>
+            <b>THỰC CHIẾN</b> · CHẤT LƯỢNG · HIỆU QUẢ
+          </small>
+          <div className="home-actions">
+            <Link className="btn btn-primary" to="/request-project">
+              Yêu cầu tư vấn <ArrowRight />
+            </Link>
+            <Link className="btn btn-ghost" to="/projects">
+              <Play /> Xem dự án nổi bật
+            </Link>
+          </div>
+          <State query={query}>
+            <div className="social-proof">
+              <div>
+                {data.creators.slice(0, 4).map((c) => (
+                  <img
+                    key={c.id}
+                    src={c.avatar_url || avatarPlaceholder(c.display_name)}
+                    alt=""
+                  />
+                ))}
+              </div>
+              <p>
+                <b>
+                  {data.stats.creators.toLocaleString("vi-VN")} Creator trong
+                  mạng lưới
+                </b>
+                <span>
+                  {data.stats.projects.toLocaleString("vi-VN")} case study đã
+                  công bố
+                </span>
+              </p>
+            </div>
+          </State>
+        </div>
+        <div className="home-brand-stage">
+          <img
+            className="brand-hero-art"
+            src="/assets/brand/mediahub-hero.png"
+            alt="Biểu tượng MediaHub 3D trên bệ, cùng các lĩnh vực sáng tạo nội dung, video, marketing và thiết kế"
+            width="1448"
+            height="1086"
+            fetchPriority="high"
+          />
+        </div>
+      </section>
+      <form className="home-search-dock" onSubmit={search}>
+        <label>
+          <Search />
+          <input name="search" placeholder="Tìm kỹ năng hoặc tên Creator…" />
+        </label>
+        <select name="category" aria-label="Chuyên môn">
+          <option value="">Mọi chuyên môn</option>
+          {filters.data?.categories.map((c) => (
+            <option key={c.id} value={c.slug}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <select name="location" aria-label="Khu vực">
+          <option value="">Toàn quốc / Remote</option>
+          <option value="Hà Nội">Hà Nội</option>
+          <option value="Hồ Chí Minh">TP. Hồ Chí Minh</option>
+        </select>
+        <select name="experience" aria-label="Kinh nghiệm">
+          <option value="">Mọi cấp độ</option>
+          <option value="JUNIOR">Junior</option>
+          <option value="SENIOR">Senior</option>
+          <option value="LEAD">Lead</option>
+        </select>
+        <button aria-label="Tìm kiếm Creator">
+          <Search />
+        </button>
+      </form>
+      <section className="home-trust-strip">
+        {[
+          [
+            ShieldCheck,
+            "Creator chất lượng",
+            "Được tuyển chọn, kiểm tra portfolio",
+          ],
+          [
+            Palette,
+            "Quy trình chuyên nghiệp",
+            "MediaHub quản lý từ brief đến nghiệm thu",
+          ],
+          [CircleDollarSign, "Chi phí hợp lý", "Tối ưu ngân sách doanh nghiệp"],
+          [Clock3, "Hỗ trợ tận tâm", "Luôn đồng hành trong suốt dự án"],
+        ].map(([Icon, title, desc]) => (
+          <article key={String(title)}>
+            <span>
+              <Icon />
+            </span>
+            <div>
+              <b>{title as string}</b>
+              <small>{desc as string}</small>
+            </div>
+          </article>
+        ))}
+      </section>
+      <CompanyPortfolio compact />
+      <ServiceProcess embedded />
+      <section className="home-section">
+        <SectionHeading
+          centered
+          eyebrow="DỊCH VỤ CỦA CHÚNG TÔI"
+          title={
+            <>
+              Giải pháp truyền thông <em>toàn diện</em> cho doanh nghiệp
+            </>
+          }
+          description="Được triển khai bởi tập thể creator trẻ giàu nhiệt huyết, dưới sự quản lý chuyên nghiệp."
+        />
+        <State query={query}>
+          <div className="home-service-grid">
+            {data.services.map((s, i) => {
+              const Icon = serviceIcons[i % serviceIcons.length];
+              return (
+                <Link key={s.id} to={`/services/${s.slug}`}>
+                  <span className={`service-icon s${i}`}>
+                    <Icon />
+                  </span>
+                  <h3>{s.name}</h3>
+                  <p>{s.description}</p>
+                  <b>
+                    Xem chi tiết dịch vụ <ArrowRight />
+                  </b>
+                </Link>
+              );
+            })}
+          </div>
+        </State>
+      </section>
+      <section className="home-stats">
+        <State query={query}>
+          {[
+            [data.stats.creators, "Creator trong mạng lưới"],
+            [data.stats.projects, "Case study đã công bố"],
+          ].map(([number, label]) => (
+            <div key={label}>
+              <strong>{Number(number).toLocaleString("vi-VN")}</strong>
+              <span>{label}</span>
+            </div>
+          ))}
+        </State>
+      </section>
+      <section className="home-section creators-section">
+        <SectionHeading
+          eyebrow="MEDIAHUB SELECTED TALENT"
+          title="Những Creator trẻ đang tạo dấu ấn"
+          description="Khám phá hồ sơ, chuyên môn và portfolio để tìm creator phù hợp."
+          action={
+            <Link to="/creators">
+              Khám phá đội ngũ <ArrowRight />
+            </Link>
+          }
+        />
+        <State query={query}>
+          <div className="home-creators-grid">
+            {data.creators.map((c) => (
+              <Link to={`/creators/${c.slug}`} key={c.id}>
+                <div className="creator-photo">
+                  <img
+                    src={c.avatar_url || avatarPlaceholder(c.display_name)}
+                    alt={`Ảnh đại diện ${c.display_name}`}
+                  />
+                  {c.verified && <BadgeCheck />}
+                </div>
+                <h3>{c.display_name}</h3>
+                <p>{c.title}</p>
+                <div>
+                  {c.creator_skills.slice(0, 3).map((x) => (
+                    <span key={x.skills.id}>{x.skills.name}</span>
+                  ))}
+                </div>
+                <footer>
+                  <b>
+                    <Star /> {c.rating || "Mới"}
+                  </b>
+                  <span>
+                    {c.completed_projects} đơn hoàn thành trên MediaHub
+                  </span>
+                </footer>
+              </Link>
+            ))}
+          </div>
+          {!data.creators.length && (
+            <p className="muted">
+              Hồ sơ Creator đang được cập nhật bằng thông tin thật. Liên hệ
+              MediaHub để được tư vấn.
+            </p>
+          )}
+        </State>
+      </section>
+      <LandingAudiences />
+      <section className="home-section home-partner-panel">
+        <div className="home-partner-list">
+          <header>
+            <h2>Đối tác MediaHub</h2>
+            <Link to="/partners">
+              Xem thông tin đối tác <ArrowRight />
+            </Link>
+          </header>
+          <State query={query}>
+            <div className="partner-logo-grid">
+              {data.partners.length ? (
+                data.partners.map((p) => (
+                  <Link
+                    key={p.id}
+                    to={`/partners/${p.id}`}
+                    aria-label={`Xem thông tin đối tác ${p.name}`}
+                  >
+                    {p.logo ? (
+                      <img src={p.logo} alt={p.name} loading="lazy" />
+                    ) : (
+                      <strong>{p.name}</strong>
+                    )}
+                  </Link>
+                ))
+              ) : (
+                <p>Thông tin đối tác sẽ được cập nhật.</p>
+              )}
+            </div>
+          </State>
+        </div>
+        <div className="home-testimonial">
+          <h2>Khách hàng nói về chúng tôi</h2>
+          <State query={query}>
+            {data.testimonials[0] ? (
+              <blockquote>
+                <span className="testimonial-quote" aria-hidden="true">
+                  “
+                </span>
+                <p>{data.testimonials[0].content}</p>
+                <footer>Phản hồi đã công bố</footer>
+              </blockquote>
+            ) : (
+              <p className="muted">
+                Phản hồi khách hàng sẽ được cập nhật sau khi dự án hoàn thành.
+              </p>
+            )}
+          </State>
+        </div>
+      </section>
+    </main>
+  );
+}
 
-function SectionHeading({eyebrow,title,description,action,centered=false}:{eyebrow:string;title:React.ReactNode;description:string;action?:React.ReactNode;centered?:boolean}){return <header className={`home-section-heading ${centered?"centered":""}`}><div><small>{eyebrow}</small><h2>{title}</h2><p>{description}</p></div>{action}</header>}
+function SectionHeading({
+  eyebrow,
+  title,
+  description,
+  action,
+  centered = false,
+}: {
+  eyebrow: string;
+  title: React.ReactNode;
+  description: string;
+  action?: React.ReactNode;
+  centered?: boolean;
+}) {
+  return (
+    <header className={`home-section-heading ${centered ? "centered" : ""}`}>
+      <div>
+        <small>{eyebrow}</small>
+        <h2>{title}</h2>
+        <p>{description}</p>
+      </div>
+      {action}
+    </header>
+  );
+}

@@ -1,35 +1,39 @@
 # MediaHub Frontend
 
-React + Vite + TypeScript frontend MVP for MediaHub.
+The frontend is a React, TypeScript and Vite application. It uses Supabase Auth in the browser and sends application data requests to the Node API through `/api`.
 
-## Run
+## Local development
 
-```bash
-npm install
+From the repository root, install both application packages and start the API and frontend:
+
+```powershell
+npm ci --prefix backend --ignore-scripts
+npm ci --prefix frontend --ignore-scripts
 npm run dev
 ```
 
-Routes:
+The root command starts the API and Vite, reusing a healthy local MediaHub API when one is already running. For frontend-only work, `npm run dev --prefix frontend` starts Vite by itself.
 
-- `/` public homepage
-- `/projects` project library
-- `/login`, `/register`
-- `/customer/dashboard`, `/customer/projects/new`, `/customer/projects/:id`
-- `/admin/dashboard`, `/admin/projects`, `/admin/customers`, `/admin/revenue`, `/admin/employees`, `/admin/services`, `/admin/portfolio`
+Configure `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and, when needed, `VITE_API_BASE_URL` in the root `.env`. Only public browser settings belong in `VITE_` variables; never expose a service-role key.
 
-Additional routes:
+## Source layout
 
-- `/forgot-password`, `/reset-password`
-- `/customer/profile`, `/customer/notifications`
-- `/admin/projects/:id`, `/admin/testimonials`
-- `/admin/profile`, `/admin/notifications`
+- `src/pages/` contains public, auth, Admin, Customer, Creator and shared workspaces.
+- `src/components/`, `src/layouts/` and `src/contexts/` contain shared UI, navigation and session/site state.
+- `src/lib/` and `src/services/` hold API-facing helpers, permissions and client utilities.
+- `src/styles.css` preserves cascade order by importing `styles/base.css`, `styles/shared-overrides.css`, `styles/system.css` and `styles/workflows.css`. `styles/brand.css` loads after those layers.
 
-The UI follows the local Stitch templates: dark surfaces, orange/purple accents, responsive cards, authentication panels and dashboard navigation. Customer and admin routes require the corresponding Supabase profile role.
+## Checks
 
-API data is loaded from the Node backend; no mock records are substituted on errors. Forms support loading, validation, success and failure states. The customer workflow includes project requests, quotations, files, delivery approval, revisions and reviews. Admin pages include project status updates, quotations, deliveries, payment confirmation and content management.
+Run these from the repository root:
 
-Vite reads environment variables from the repository root `.env` (see `../.env.example`). Configure `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and `VITE_API_BASE_URL`, then restart Vite. Only `VITE_` variables are exposed to the browser. Configure the backend separately and apply the Supabase migrations. Add `/login` and `/reset-password` URLs to the Supabase Auth redirect allowlist. Never prefix a service-role key with `VITE_`.
+```powershell
+npm test
+npm run test:e2e
+npm run lint
+npm run typecheck
+npm run format:check
+npm run build
+```
 
-Run `npm run build` to check TypeScript and generate `dist/`. Production hosting must rewrite client routes to `index.html`.
-
-Creator discovery is present in the design references but has no public backend endpoint in this application's customer/admin model. The current navigation therefore follows the implemented customer and admin routes.
+Playwright intercepts Supabase Auth and API calls for deterministic browser tests. Those tests cover the login and registration interface and client state; use a non-production QA Supabase account to verify real credentials and email delivery. See [local setup and deployment](../docs/operations/deployment.md) and the [documentation index](../docs/README.md) for backend, database and workflow guidance.

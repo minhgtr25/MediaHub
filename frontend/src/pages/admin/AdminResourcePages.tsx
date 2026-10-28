@@ -12,152 +12,21 @@ import {
   money,
 } from "../../components/ui";
 import { adminService } from "../../services";
-import { date } from "../shared/WorkspacePages";
+import {
+  PortfolioMediaField,
+  uploadPortfolioMedia,
+} from "../../components/PortfolioMediaField";
+import {
+  fieldValue,
+  mediaFieldValue,
+  schemas,
+  type ResourceListRow,
+  type ResourceRow,
+} from "./admin-resource-schemas";
 
-type ResourceField = {
-  name: string;
-  label: string;
-  type?: string;
-  options?: string[];
-  optional?: boolean;
-};
-const schemas: Record<string, { title: string; fields: ResourceField[] }> = {
-  services: {
-    title: "Quản lý dịch vụ",
-    fields: [
-      { name: "name", label: "Tên dịch vụ" },
-      { name: "slug", label: "Đường dẫn (ví dụ: video-production)" },
-      { name: "description", label: "Mô tả", type: "textarea" },
-      { name: "category", label: "Danh mục" },
-      { name: "starting_price", label: "Giá khởi điểm (VNĐ)", type: "number" },
-      { name: "estimated_days", label: "Số ngày dự kiến", type: "number" },
-      { name: "thumbnail_url", label: "URL ảnh", type: "url", optional: true },
-      { name: "active", label: "Hiển thị dịch vụ", type: "checkbox" },
-    ],
-  },
-  employees: {
-    title: "Quản lý nhân viên",
-    fields: [
-      { name: "name", label: "Họ và tên" },
-      { name: "email", label: "Email", type: "email" },
-      { name: "phone", label: "Điện thoại", optional: true },
-      { name: "position", label: "Vị trí" },
-      { name: "department", label: "Bộ phận" },
-      {
-        name: "skills",
-        label: "Kỹ năng (phân cách bằng dấu phẩy)",
-        optional: true,
-      },
-      { name: "joined_at", label: "Ngày tham gia", type: "date" },
-      { name: "status", label: "Trạng thái", options: ["ACTIVE", "INACTIVE"] },
-    ],
-  },
-  portfolio: {
-    title: "Hồ sơ dự án",
-    fields: [
-      { name: "title", label: "Tên dự án" },
-      { name: "client", label: "Khách hàng" },
-      { name: "description", label: "Mô tả", type: "textarea" },
-      { name: "category", label: "Danh mục" },
-      { name: "image_url", label: "URL ảnh", type: "url", optional: true },
-      { name: "published", label: "Công khai", type: "checkbox" },
-      { name: "featured", label: "Dự án nổi bật", type: "checkbox" },
-    ],
-  },
-  testimonials: {
-    title: "Quản lý đánh giá",
-    fields: [
-      { name: "review_id", label: "Mã đánh giá gốc (UUID)" },
-      { name: "content", label: "Nội dung", type: "textarea" },
-      {
-        name: "status",
-        label: "Trạng thái",
-        options: ["PENDING", "APPROVED", "REJECTED"],
-      },
-    ],
-  },
-};
-Object.assign(schemas, {
-  partners: {
-    title: "Đối tác",
-    fields: [
-      { name: "name", label: "Tên đối tác" },
-      { name: "logo", label: "URL logo", type: "url", optional: true },
-      { name: "website", label: "Website", type: "url", optional: true },
-      { name: "description", label: "Mô tả", type: "textarea", optional: true },
-      { name: "industry", label: "Lĩnh vực", optional: true },
-      { name: "display_order", label: "Thứ tự hiển thị", type: "number" },
-      { name: "active", label: "Công khai", type: "checkbox" },
-    ],
-  },
-  work_processes: {
-    title: "Quy trình",
-    fields: [
-      { name: "title", label: "Tiêu đề" },
-      { name: "description", label: "Mô tả", type: "textarea" },
-      { name: "step", label: "Bước", type: "number" },
-      { name: "display_order", label: "Thứ tự hiển thị", type: "number" },
-      { name: "icon", label: "Biểu tượng", optional: true },
-      { name: "image", label: "URL ảnh", type: "url", optional: true },
-      { name: "active", label: "Công khai", type: "checkbox" },
-    ],
-  },
-  website_settings: {
-    title: "Nội dung & cấu hình website",
-    fields: [
-      {
-        name: "key",
-        label:
-          "Khóa nội dung (hero, about, privacy, terms, company_email, company_phone)",
-      },
-      { name: "title", label: "Tiêu đề" },
-      { name: "content", label: "Nội dung", type: "textarea" },
-      { name: "image", label: "URL ảnh", type: "url", optional: true },
-      { name: "published", label: "Công khai", type: "checkbox" },
-    ],
-  },
-});
 export function AdminContent({ resource }: { resource: string }) {
   return <ResourcePage resource={resource} />;
 }
-schemas.services.fields.push(
-  { name: "featured", label: "Nổi bật", type: "checkbox" },
-  { name: "display_order", label: "Thứ tự", type: "number" },
-  {
-    name: "features",
-    label: "Đặc điểm (phân cách bằng dấu phẩy)",
-    optional: true,
-  },
-  {
-    name: "deliverables",
-    label: "Sản phẩm bàn giao (phân cách bằng dấu phẩy)",
-    optional: true,
-  },
-  { name: "seo_title", label: "Tiêu đề SEO", optional: true },
-  { name: "seo_description", label: "Mô tả SEO", optional: true },
-);
-schemas.portfolio.fields.push(
-  { name: "slug", label: "Đường dẫn" },
-  { name: "industry", label: "Lĩnh vực", optional: true },
-  { name: "year", label: "Năm", type: "number", optional: true },
-  { name: "duration", label: "Thời lượng", optional: true },
-  { name: "challenge", label: "Thách thức", type: "textarea", optional: true },
-  { name: "solution", label: "Giải pháp", type: "textarea", optional: true },
-  { name: "result", label: "Kết quả", type: "textarea", optional: true },
-  {
-    name: "gallery",
-    label: "URL gallery (mỗi dòng một URL)",
-    type: "textarea",
-    optional: true,
-  },
-  {
-    name: "deliverables",
-    label: "Sản phẩm bàn giao (phân cách bằng dấu phẩy)",
-    optional: true,
-  },
-  { name: "seo_title", label: "Tiêu đề SEO", optional: true },
-  { name: "seo_description", label: "Mô tả SEO", optional: true },
-);
 export function AdminEmployees() {
   return <ResourcePage resource="employees" />;
 }
@@ -178,12 +47,12 @@ function ResourcePage({ resource }: { resource: string }) {
   const schema = schemas[resource],
     [search, setSearch] = useState(""),
     [page, setPage] = useState(1),
-    [editing, setEditing] = useState<any | null>(isNew ? {} : null);
-  const detail = useApi(id ? `/admin/${resource}/${id}` : null);
+    [editing, setEditing] = useState<ResourceRow | null>(isNew ? {} : null);
+  const detail = useApi<ResourceRow>(id ? `/admin/${resource}/${id}` : null);
   useEffect(() => {
     if (detail.data) setEditing(detail.data);
   }, [detail.data]);
-  const query = useApi(
+  const query = useApi<{ items: ResourceListRow[]; total: number }>(
     `/admin/${resource}?page=${page}&search=${encodeURIComponent(search)}`,
   );
   return (
@@ -226,7 +95,7 @@ function ResourcePage({ resource }: { resource: string }) {
           </div>
           <ActionForm
             key={editing.id ?? "new"}
-            onSubmit={(data) => {
+            onSubmit={async (data) => {
               const body: Record<string, unknown> = {};
               for (const f of schema.fields)
                 body[f.name] =
@@ -255,6 +124,22 @@ function ResourcePage({ resource }: { resource: string }) {
                 throw new Error(
                   "Số ngày dự kiến phải là số nguyên từ 1 trở lên.",
                 );
+              if (resource === "portfolio") {
+                if (editing.is_demo && body.published)
+                  throw new Error(
+                    "Đây là dữ liệu mẫu đã ẩn. Hãy tạo dự án mới bằng nội dung và ảnh thật.",
+                  );
+                const uploaded = await uploadPortfolioMedia(data, [
+                  "image_url",
+                  "gallery",
+                ]);
+                if (uploaded.image_url.length)
+                  body.image_url = uploaded.image_url[0];
+                body.gallery = [
+                  ...(body.gallery as string[]),
+                  ...uploaded.gallery,
+                ];
+              }
               return adminService.save(resource, editing.id, body);
             }}
             onSuccess={() => {
@@ -263,14 +148,34 @@ function ResourcePage({ resource }: { resource: string }) {
               if (id || isNew) navigate(`/admin/${resource}`);
             }}
           >
+            {resource === "portfolio" && (
+              <p>
+                {editing.is_demo
+                  ? "Dự án mẫu đã được ẩn khỏi website. Bạn có thể xem lại hoặc xóa; hãy tạo dự án mới cho nội dung thật."
+                  : "Thêm ảnh bìa và thư viện từ máy tính, điền thông tin thật rồi chọn Công khai khi sẵn sàng."}
+              </p>
+            )}
             <div className="form-grid">
               {schema.fields.map((f) =>
-                f.type === "checkbox" ? (
+                resource === "portfolio" &&
+                ["image_url", "gallery"].includes(f.name) ? (
+                  <PortfolioMediaField
+                    key={f.name}
+                    name={f.name}
+                    label={
+                      f.name === "image_url" ? "Ảnh bìa dự án" : "Thư viện ảnh"
+                    }
+                    value={mediaFieldValue(editing[f.name])}
+                    multiple={f.name === "gallery"}
+                  />
+                ) : f.type === "checkbox" ? (
                   <label className="checkbox-field" key={f.name}>
                     <input
                       type="checkbox"
                       name={f.name}
-                      defaultChecked={editing[f.name] ?? f.name === "active"}
+                      defaultChecked={Boolean(
+                        editing[f.name] ?? f.name === "active",
+                      )}
                     />
                     {f.label}
                   </label>
@@ -279,7 +184,7 @@ function ResourcePage({ resource }: { resource: string }) {
                     {f.label}
                     <select
                       name={f.name}
-                      defaultValue={editing[f.name] ?? f.options[0]}
+                      defaultValue={String(editing[f.name] ?? f.options[0])}
                     >
                       {f.options.map((v) => (
                         <option key={v} value={v}>
@@ -305,13 +210,10 @@ function ResourcePage({ resource }: { resource: string }) {
                     label={f.label}
                     type={f.type}
                     required={!f.optional}
-                    value={
-                      Array.isArray(editing[f.name])
-                        ? editing[f.name].join(
-                            f.name === "gallery" ? "\n" : ", ",
-                          )
-                        : editing[f.name]
-                    }
+                    value={fieldValue(
+                      editing[f.name],
+                      f.name === "gallery" ? "\n" : ", ",
+                    )}
                   />
                 ),
               )}
@@ -321,7 +223,7 @@ function ResourcePage({ resource }: { resource: string }) {
       )}
       <State query={query}>
         <div className="resource-grid">
-          {query.data?.items.map((row: any) => (
+          {query.data?.items.map((row) => (
             <article className="panel resource-card" key={row.id}>
               {(row.image_url || row.thumbnail_url) && (
                 <img
@@ -345,6 +247,7 @@ function ResourcePage({ resource }: { resource: string }) {
               <Status
                 value={
                   row.status ||
+                  (row.is_demo ? "Dữ liệu mẫu · Đã ẩn" : "") ||
                   (row.active !== undefined
                     ? row.active
                       ? "ACTIVE"
@@ -386,205 +289,6 @@ function ResourcePage({ resource }: { resource: string }) {
         <Pagination
           page={page}
           total={query.data?.total ?? 0}
-          onChange={setPage}
-        />
-      </State>
-    </Page>
-  );
-}
-export function AdminCustomers() {
-  const [search, setSearch] = useState(""),
-    [page, setPage] = useState(1),
-    [selected, setSelected] = useState("");
-  const query = useApi(
-    `/admin/customers?page=${page}&search=${encodeURIComponent(search)}`,
-  );
-  return (
-    <Page title="Quản lý khách hàng">
-      <p>Thông tin doanh nghiệp và lịch sử hợp tác.</p>
-      <div className="toolbar">
-        <div className="search-input">
-          <Search size={18} />
-          <input
-            aria-label="Tìm khách hàng"
-            placeholder="Tìm tên doanh nghiệp…"
-            maxLength={100}
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-          />
-        </div>
-      </div>
-      <State query={query}>
-        <div className="panel table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Khách hàng</th>
-                <th>Doanh nghiệp</th>
-                <th>Email</th>
-                <th>Ngày tham gia</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {query.data?.items.map((c: any) => (
-                <tr key={c.id}>
-                  <td>
-                    <b>{c.profiles?.full_name}</b>
-                  </td>
-                  <td>{c.company_name || "—"}</td>
-                  <td>{c.profiles?.email}</td>
-                  <td>{date(c.created_at)}</td>
-                  <td>
-                    <button
-                      className="btn btn-ghost"
-                      onClick={() => setSelected(c.id)}
-                    >
-                      Chi tiết
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {!query.data?.items.length && (
-            <div className="empty-state">Chưa có khách hàng phù hợp.</div>
-          )}
-        </div>
-        <Pagination
-          page={page}
-          total={query.data?.total ?? 0}
-          onChange={setPage}
-        />
-      </State>
-      {selected && (
-        <CustomerDetails
-          key={selected}
-          id={selected}
-          close={() => setSelected("")}
-        />
-      )}
-    </Page>
-  );
-}
-function CustomerDetails({ id, close }: { id: string; close: () => void }) {
-  const query = useApi("/admin/customers/" + id);
-  return (
-    <section className="panel">
-      <div className="panel-head">
-        <h2>Thông tin khách hàng</h2>
-        <button className="icon-btn" aria-label="Đóng chi tiết" onClick={close}>
-          <X />
-        </button>
-      </div>
-      <State query={query}>
-        <h3>{query.data?.customer.profiles?.full_name}</h3>
-        <p>
-          {query.data?.customer.profiles?.email} ·{" "}
-          {query.data?.customer.profiles?.phone || "Chưa có số điện thoại"}
-        </p>
-        <p>{query.data?.projects.total ?? 0} dự án</p>
-        {query.data?.projects.items.map((p: any) => (
-          <p key={p.id}>
-            {p.title} · <Status value={p.status} />
-          </p>
-        ))}
-      </State>
-    </section>
-  );
-}
-export function AdminRevenue() {
-  const query = useApi("/admin/revenue"),
-    [page, setPage] = useState(1),
-    invoices = useApi("/admin/invoices?page=" + page);
-  return (
-    <Page title="Doanh thu & Thanh toán">
-      <p>Theo dõi doanh thu đã thu và các hóa đơn đang chờ thanh toán.</p>
-      <State query={query}>
-        <div className="kpi-grid">
-          {[
-            ["Tổng doanh thu", "total_revenue"],
-            ["Tháng hiện tại", "monthly_revenue"],
-            ["Năm hiện tại", "yearly_revenue"],
-            ["Chờ thanh toán", "pending_payment"],
-          ].map(([label, key]) => (
-            <div className="kpi" key={key}>
-              <div>
-                <small>{label}</small>
-                <b>{money(query.data?.[key])}</b>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="admin-grid">
-          <section className="panel">
-            <h2>Doanh thu theo tháng</h2>
-            <div className="revenue-list">
-              {query.data?.by_month.map((m: any) => (
-                <div key={m.label}>
-                  <span>{m.label}</span>
-                  <meter
-                    min={0}
-                    max={Math.max(
-                      1,
-                      ...query.data.by_month.map((x: any) => Number(x.value)),
-                    )}
-                    value={Number(m.value)}
-                    aria-label={`Doanh thu ${m.label}`}
-                  />
-                  <b>{money(m.value)}</b>
-                </div>
-              ))}
-            </div>
-            {!query.data?.by_month.length && <p>Chưa ghi nhận doanh thu.</p>}
-          </section>
-          <section className="panel">
-            <h2>Theo dịch vụ</h2>
-            {query.data?.by_service.map((s: any) => (
-              <div className="panel-head" key={s.label}>
-                <p>{s.label}</p>
-                <b>{money(s.value)}</b>
-              </div>
-            ))}
-            {!query.data?.by_service.length && <p>Chưa có dữ liệu dịch vụ.</p>}
-          </section>
-        </div>
-      </State>
-      <h2>Danh sách hóa đơn</h2>
-      <State query={invoices}>
-        <div className="panel table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Mã hóa đơn</th>
-                <th>Số tiền</th>
-                <th>Ngày tạo</th>
-                <th>Trạng thái</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoices.data?.items.map((i: any) => (
-                <tr key={i.id}>
-                  <td>{i.invoice_number}</td>
-                  <td>{money(i.amount)}</td>
-                  <td>{date(i.issued_at)}</td>
-                  <td>
-                    <Status value={i.status} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {!invoices.data?.items.length && (
-            <div className="empty-state">Chưa có hóa đơn.</div>
-          )}
-        </div>
-        <Pagination
-          page={page}
-          total={invoices.data?.total ?? 0}
           onChange={setPage}
         />
       </State>
