@@ -24,6 +24,7 @@ export function Creators() {
   const [page, setPage] = useState(1),
     [search, setSearch] = useState(params.get("search") ?? ""),
     [category, setCategory] = useState(params.get("category") ?? ""),
+    [priceMax, setPriceMax] = useState(params.get("price_max") ?? ""),
     [experience, setExperience] = useState(params.get("experience") ?? ""),
     [location, setLocation] = useState(params.get("location") ?? ""),
     [sort, setSort] = useState("recommended"),
@@ -31,18 +32,29 @@ export function Creators() {
   const [applied, setApplied] = useState({
     search,
     category,
+    priceMax,
     experience,
     location,
     sort,
     availability,
   });
   const apply = () => {
-    setApplied({ search, category, experience, location, sort, availability });
+    setApplied({
+      search,
+      category,
+      experience,
+      location,
+      sort,
+      availability,
+      priceMax,
+    });
     setPage(1);
   };
   const options = useApi<{
     categories: CreatorOption[];
     skills: CreatorOption[];
+    locations: string[];
+    price_options: { value: number; label: string }[];
   }>("/public/creators/filters");
   const path = useMemo(() => {
     const p = new URLSearchParams({
@@ -58,6 +70,7 @@ export function Creators() {
       "availability",
     ] as const)
       if (applied[key]) p.set(key, applied[key]);
+    if (applied.priceMax) p.set("price_max", applied.priceMax);
     return `/public/creators?${p}`;
   }, [page, applied]);
   const query = useApi<CreatorCollection<PublicCreator>>(path);
@@ -120,11 +133,18 @@ export function Creators() {
         </select>
         <label className="location-filter">
           <MapPin size={16} />
-          <input
+          <select
+            aria-label="Tỉnh thành"
             value={location}
             onChange={change(setLocation)}
-            placeholder="Toàn quốc / Remote"
-          />
+          >
+            <option value="">Tất cả tỉnh / thành</option>
+            {options.data?.locations.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
         </label>
         <select
           aria-label="Cấp độ"
@@ -149,6 +169,18 @@ export function Creators() {
           <option value="BUSY">Đang bận/giữ chỗ</option>
           <option value="UNAVAILABLE">Tạm ngừng nhận việc</option>
         </select>
+        <select
+          aria-label="Mức giá tối đa"
+          value={priceMax}
+          onChange={(event) => setPriceMax(event.target.value)}
+        >
+          <option value="">Mọi mức giá</option>
+          {options.data?.price_options.map((item) => (
+            <option key={item.value} value={item.value}>
+              Tối đa {item.label}
+            </option>
+          ))}
+        </select>{" "}
         <button type="submit" className="btn btn-primary">
           Áp dụng <ArrowRight size={16} />
         </button>
@@ -164,6 +196,7 @@ export function Creators() {
                 setApplied({
                   search,
                   category: next,
+                  priceMax,
                   experience,
                   location,
                   sort,

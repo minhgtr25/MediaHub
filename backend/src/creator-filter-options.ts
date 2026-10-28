@@ -1,0 +1,47 @@
+﻿export const creatorLocations = [
+  "An Giang",
+  "Bắc Ninh",
+  "Cà Mau",
+  "Cao Bằng",
+  "Đắk Lắk",
+  "Điện Biên",
+  "Đồng Nai",
+  "Đồng Tháp",
+  "Gia Lai",
+  "Hà Nội",
+  "Hà Tĩnh",
+  "Hải Phòng",
+  "Huế",
+  "Hưng Yên",
+  "Khánh Hòa",
+  "Lai Châu",
+  "Lâm Đồng",
+  "Lạng Sơn",
+  "Lào Cai",
+  "Nghệ An",
+  "Ninh Bình",
+  "Phú Thọ",
+  "Quảng Ngãi",
+  "Quảng Ninh",
+  "Quảng Trị",
+  "Sơn La",
+  "Tây Ninh",
+  "Thái Nguyên",
+  "Thanh Hóa",
+  "TP. Hồ Chí Minh",
+  "Tuyên Quang",
+  "Vĩnh Long",
+  "Đà Nẵng",
+  "Cần Thơ",
+  "Remote toàn quốc",
+] as const;
+
+export const creatorPriceFilterValues = [
+  500_000, 1_000_000, 2_000_000, 3_000_000, 5_000_000, 10_000_000, 20_000_000,
+  50_000_000,
+] as const;
+
+export const creatorPriceOptions = creatorPriceFilterValues.map((value) => ({
+  value,
+  label: new Intl.NumberFormat("vi-VN").format(value) + " ₫",
+}));

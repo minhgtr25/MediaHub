@@ -5,7 +5,16 @@ export async function result<T>(
 ): Promise<T> {
   const { data, error } = await query;
   if (error) {
-    console.error("Database error", error.code);
+    console.error("Database error", {
+      code: error.code,
+      message: error.message,
+    });
+    if (["PGRST202", "PGRST204", "42703"].includes(error.code ?? ""))
+      throw new ApiError(
+        503,
+        "DATABASE_SCHEMA_NOT_READY",
+        "Cơ sở dữ liệu chưa được cập nhật cho chức năng này. Hãy áp dụng migration mới nhất rồi thử lại.",
+      );
     if (error.code === "23505")
       throw new ApiError(
         409,

@@ -61,6 +61,72 @@ const fields: [keyof Showcase, string][] = [
   ["languages", "Ngôn ngữ, cách nhau bằng dấu phẩy"],
 ];
 
+function ShowcaseField({
+  name,
+  label,
+  profile,
+}: {
+  name: keyof Showcase;
+  label: string;
+  profile: Showcase;
+}) {
+  const value = profile[name];
+  const initialValue = Array.isArray(value) ? value.join(", ") : value;
+  if (name === "bio") {
+    return (
+      <label className="field">
+        {label}
+        <textarea
+          name="bio"
+          defaultValue={String(value ?? "")}
+          maxLength={5000}
+          rows={5}
+        />
+        <small>Ít nhất 30 ký tự để công khai; tối đa 5.000 ký tự.</small>
+      </label>
+    );
+  }
+  return (
+    <label className="field">
+      {label}
+      <input
+        name={String(name)}
+        defaultValue={initialValue as string | number | undefined}
+        required={["display_name", "slug", "title"].includes(String(name))}
+        type={name === "price_from" ? "number" : "text"}
+        min={name === "price_from" ? 0 : undefined}
+        max={name === "price_from" ? 1_000_000_000_000 : undefined}
+        step={name === "price_from" ? 1 : undefined}
+        list={name === "price_from" ? "creator-price-options" : undefined}
+        maxLength={
+          name === "display_name"
+            ? 150
+            : name === "title"
+              ? 200
+              : name === "university" || name === "major"
+                ? 200
+                : name === "tools"
+                  ? 1829
+                  : name === "languages"
+                    ? 1019
+                    : undefined
+        }
+        minLength={name === "display_name" || name === "title" ? 2 : undefined}
+        pattern={name === "slug" ? "[a-z0-9]+(-[a-z0-9]+)*" : undefined}
+      />
+      <small>
+        {name === "price_from"
+          ? "Đơn vị VNĐ; gợi ý các mức giống bộ lọc công khai."
+          : name === "tools" || name === "languages"
+            ? "Phân cách bằng dấu phẩy; mỗi mục được kiểm tra riêng."
+            : name === "slug"
+              ? "Chữ thường không dấu, số và dấu gạch ngang; ví dụ: minh-anh."
+              : undefined}
+      </small>
+    </label>
+  );
+}
+
 function splitTags(
   value: string,
   label: string,
@@ -82,7 +148,7 @@ function splitTags(
   return items;
 }
 
-function validateShowcaseForm(data: FormData) {
+function validateShowcaseForm(data: FormData, locations: string[]) {
   const get = (name: string) => String(data.get(name) ?? "").trim();
   const display_name = get("display_name");
   const slug = get("slug");
@@ -107,6 +173,10 @@ function validateShowcaseForm(data: FormData) {
   if (location.length > 100 || university.length > 200 || major.length > 200)
     throw new Error(
       "Khu vực tối đa 100 ký tự; trường học và chuyên ngành tối đa 200 ký tự.",
+    );
+  if (!locations.includes(location))
+    throw new Error(
+      "Hãy chọn một tỉnh, thành phố hoặc Toàn quốc / Remote từ danh sách.",
     );
   const priceText = get("price_from");
   if (
@@ -170,6 +240,8 @@ export function CreatorShowcasePage() {
   const options = useApi<{
     categories: CreatorOption[];
     skills: CreatorOption[];
+    locations: string[];
+    price_options: { value: number; label: string }[];
   }>("/public/creators/filters");
   return (
     <Page title="Creator giới thiệu">
@@ -200,7 +272,10 @@ export function CreatorShowcasePage() {
           <ActionForm
             key={editing.id || "new"}
             onSubmit={async (data) => {
-              const validated = validateShowcaseForm(data);
+              const validated = validateShowcaseForm(
+                data,
+                options.data?.locations ?? [],
+              );
               const uploaded = await uploadPortfolioMedia(data, [
                 "avatar_url",
                 "cover_url",
@@ -227,155 +302,199 @@ export function CreatorShowcasePage() {
               list.reload();
             }}
           >
-            <div className="form-grid">
-              {fields
-                .filter(
-                  ([name]) => name !== "avatar_url" && name !== "cover_url",
-                )
-                .map(([name, label]) => (
-                  <label className="field" key={name}>
-                    {label}
-                    {name === "bio" ? (
-                      <textarea
-                        name="bio"
-                        defaultValue={editing.bio}
-                        maxLength={5000}
-                        rows={6}
-                        aria-describedby="creator-bio-hint"
+            <div className="creator-showcase-form">
+              <section className="creator-showcase-section">
+                <h3>Thông tin cơ bản</h3>
+                <div className="creator-showcase-fields">
+                  {fields
+                    .filter(([name]) =>
+                      ["display_name", "slug", "title", "bio"].includes(
+                        String(name),
+                      ),
+                    )
+                    .map(([name, label]) => (
+                      <ShowcaseField
+                        key={name}
+                        name={name}
+                        label={label}
+                        profile={editing}
                       />
-                    ) : (
-                      <input
-                        name={String(name)}
-                        defaultValue={
-                          editing[name] as string | number | undefined
-                        }
-                        required={["display_name", "slug", "title"].includes(
-                          String(name),
-                        )}
-                        type={name === "price_from" ? "number" : "text"}
-                        min={name === "price_from" ? 0 : undefined}
-                        max={
-                          name === "price_from" ? 1_000_000_000_000 : undefined
-                        }
-                        step={name === "price_from" ? 1 : undefined}
-                        maxLength={
-                          name === "display_name"
-                            ? 150
-                            : name === "title"
-                              ? 200
-                              : name === "location"
-                                ? 100
-                                : name === "university" || name === "major"
-                                  ? 200
-                                  : name === "tools"
-                                    ? 1829
-                                    : name === "languages"
-                                      ? 1019
-                                      : undefined
-                        }
-                        minLength={
-                          name === "display_name" || name === "title"
-                            ? 2
-                            : undefined
-                        }
-                        pattern={
-                          name === "slug" ? "[a-z0-9]+(-[a-z0-9]+)*" : undefined
-                        }
-                      />
-                    )}
-                    {name === "bio" && (
-                      <small id="creator-bio-hint">
-                        Tối đa 5.000 ký tự; hồ sơ cần ít nhất 30 ký tự giới
-                        thiệu để công khai.
-                      </small>
-                    )}
-                  </label>
-                ))}
-              <PortfolioMediaField
-                name="avatar_url"
-                label="Ảnh đại diện"
-                value={editing.avatar_url}
-                hideUrl
-                allowClear
-              />
-              <PortfolioMediaField
-                name="cover_url"
-                label="Ảnh bìa"
-                value={editing.cover_url}
-                hideUrl
-                allowClear
-              />
-              <label className="field">
-                Cấp độ
-                <select
-                  name="experience_level"
-                  defaultValue={editing.experience_level}
-                >
-                  <option value="STUDENT">Sinh viên</option>
-                  <option value="JUNIOR">Junior</option>
-                  <option value="MID">Middle</option>
-                  <option value="SENIOR">Senior</option>
-                  <option value="LEAD">Lead</option>
-                </select>
-              </label>
-              {(
-                [
-                  [
-                    "categories",
-                    options.data?.categories ?? [],
-                    editing.category_ids,
-                    "category_ids",
-                  ],
-                  [
-                    "Kỹ năng",
-                    options.data?.skills ?? [],
-                    editing.skill_ids,
-                    "skill_ids",
-                  ],
-                ] as const
-              ).map(([label, items, selected, name]) => (
-                <fieldset className="field" key={name}>
-                  <legend>{label}</legend>
-                  <div className="creator-option-list">
-                    {items.map((item) => (
-                      <label key={item.id}>
-                        <input
-                          type="checkbox"
-                          name={name}
-                          value={item.id}
-                          defaultChecked={selected.includes(item.id)}
-                        />
-                        {item.name}
-                      </label>
                     ))}
-                  </div>
-                </fieldset>
-              ))}
-              <label className="checkbox-field">
-                <input
-                  type="checkbox"
-                  name="featured"
-                  defaultChecked={editing.featured}
-                />
-                Nổi bật
-              </label>
-              <label className="checkbox-field">
-                <input
-                  type="checkbox"
-                  name="is_demo"
-                  defaultChecked={editing.is_demo}
-                />
-                Dữ liệu minh họa (hiện nhãn công khai)
-              </label>
-              <label className="checkbox-field">
-                <input
-                  type="checkbox"
-                  name="published"
-                  defaultChecked={editing.published}
-                />
-                Công khai
-              </label>
-            </div>
+                </div>
+              </section>
+              <section className="creator-showcase-section">
+                <h3>Địa điểm và cấp độ</h3>
+                <div className="creator-showcase-fields">
+                  <label className="field">
+                    Tỉnh / thành phố
+                    <select
+                      name="location"
+                      defaultValue={editing.location}
+                      required
+                      disabled={!options.data?.locations.length}
+                    >
+                      <option value="">Chọn tỉnh / thành phố</option>
+                      {options.data?.locations.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </select>
+                    <small>
+                      Dùng cùng danh sách với bộ lọc Creator công khai.
+                    </small>
+                  </label>
+                  <label className="field">
+                    Cấp độ
+                    <select
+                      name="experience_level"
+                      defaultValue={editing.experience_level}
+                      required
+                    >
+                      <option value="STUDENT">Sinh viên</option>
+                      <option value="JUNIOR">Junior</option>
+                      <option value="MID">Middle</option>
+                      <option value="SENIOR">Senior</option>
+                      <option value="LEAD">Lead</option>
+                    </select>
+                  </label>
+                  {fields
+                    .filter(([name]) =>
+                      ["university", "major"].includes(String(name)),
+                    )
+                    .map(([name, label]) => (
+                      <ShowcaseField
+                        key={name}
+                        name={name}
+                        label={label}
+                        profile={editing}
+                      />
+                    ))}
+                </div>
+              </section>
+              <section className="creator-showcase-section">
+                <h3>Ảnh hồ sơ</h3>
+                <div className="creator-showcase-fields">
+                  <PortfolioMediaField
+                    name="avatar_url"
+                    label="Ảnh đại diện"
+                    value={editing.avatar_url}
+                    hideUrl
+                    allowClear
+                  />
+                  <PortfolioMediaField
+                    name="cover_url"
+                    label="Ảnh bìa"
+                    value={editing.cover_url}
+                    hideUrl
+                    allowClear
+                  />
+                </div>
+              </section>
+              <section className="creator-showcase-section">
+                <h3>Giá và năng lực</h3>
+                <div className="creator-showcase-fields">
+                  {fields
+                    .filter(([name]) =>
+                      ["price_from", "tools", "languages"].includes(
+                        String(name),
+                      ),
+                    )
+                    .map(([name, label]) => (
+                      <ShowcaseField
+                        key={name}
+                        name={name}
+                        label={label}
+                        profile={editing}
+                      />
+                    ))}
+                  <datalist id="creator-price-options">
+                    {options.data?.price_options.map((item) => (
+                      <option
+                        key={item.value}
+                        value={item.value}
+                        label={item.label}
+                      />
+                    ))}
+                  </datalist>
+                </div>
+              </section>
+              <section className="creator-showcase-section">
+                <h3>Chuyên môn và kỹ năng</h3>
+                <div className="creator-showcase-picks">
+                  {(
+                    [
+                      [
+                        "Chuyên môn",
+                        options.data?.categories ?? [],
+                        editing.category_ids,
+                        "category_ids",
+                      ],
+                      [
+                        "Kỹ năng",
+                        options.data?.skills ?? [],
+                        editing.skill_ids,
+                        "skill_ids",
+                      ],
+                    ] as const
+                  ).map(([label, items, selected, name]) => (
+                    <fieldset className="creator-showcase-pick" key={name}>
+                      <legend>{label}</legend>
+                      {items.length ? (
+                        <div className="creator-option-list">
+                          {items.map((item) => (
+                            <label key={item.id}>
+                              <input
+                                type="checkbox"
+                                name={name}
+                                value={item.id}
+                                defaultChecked={selected.includes(item.id)}
+                              />
+                              {item.name}
+                            </label>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="muted">Chưa có lựa chọn khả dụng.</p>
+                      )}
+                    </fieldset>
+                  ))}
+                </div>
+              </section>
+              <section className="creator-showcase-section">
+                <h3>Trạng thái hồ sơ</h3>
+                <div className="creator-showcase-status">
+                  <label className="creator-showcase-check">
+                    <input
+                      type="checkbox"
+                      name="published"
+                      defaultChecked={editing.published}
+                    />
+                    Công khai
+                  </label>
+                  <label className="creator-showcase-check">
+                    <input
+                      type="checkbox"
+                      name="featured"
+                      defaultChecked={editing.featured}
+                    />
+                    Nổi bật
+                  </label>
+                  <label className="creator-showcase-check">
+                    <input
+                      type="checkbox"
+                      name="is_demo"
+                      defaultChecked={editing.is_demo}
+                    />
+                    Dữ liệu minh họa
+                  </label>
+                </div>
+                <small>
+                  Hồ sơ công khai cần có giới thiệu đủ dài, chuyên môn và ít
+                  nhất một kỹ năng.
+                </small>
+              </section>
+            </div>{" "}
           </ActionForm>
         </section>
       )}

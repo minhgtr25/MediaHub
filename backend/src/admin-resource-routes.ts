@@ -4,6 +4,7 @@ import { ApiError, db, result } from "./db.js";
 import { resources, uuid } from "./validators.js";
 import { list } from "./utils/pagination.js";
 import { send } from "./utils/response.js";
+import { creatorLocations } from "./creator-filter-options.js";
 
 export const adminResourceRoutes = Router();
 const secureImageUrl = z.union([
@@ -47,7 +48,7 @@ const showcasePayload = z
     bio: plainText(5000),
     avatar_url: secureImageUrl,
     cover_url: secureImageUrl,
-    location: plainText(100),
+    location: z.enum(creatorLocations),
     university: plainText(200),
     major: plainText(200),
     experience_level: z.enum(["STUDENT", "JUNIOR", "MID", "SENIOR", "LEAD"]),
@@ -87,6 +88,44 @@ const showcasePayload = z
       });
     }
   });
+async function saveCreatorShowcase(
+  actorId: string,
+  operation: "create" | "update" | "delete",
+  payload: import("./models/database.types.js").Json,
+) {
+  const { data, error } = await db.rpc("admin_manage_creator_showcase", {
+    actor_id: actorId,
+    operation,
+    payload,
+  });
+  if (error) {
+    console.error("Creator showcase database error", {
+      code: error.code,
+      message: error.message,
+    });
+    if (["PGRST202", "PGRST204", "42703"].includes(error.code ?? "")) {
+      throw new ApiError(
+        503,
+        "CREATOR_SHOWCASE_SCHEMA_NOT_READY",
+        "Database chưa được cập nhật cho tính năng Creator. Hãy áp dụng migration mới nhất rồi thử lại.",
+      );
+    }
+    if (error.code === "P0001")
+      throw new ApiError(409, "INVALID_CREATOR_SHOWCASE", error.message);
+    if (error.code === "23505")
+      throw new ApiError(
+        409,
+        "DUPLICATE_CREATOR_SLUG",
+        "Đường dẫn này đã được sử dụng.",
+      );
+    throw new ApiError(
+      500,
+      "CREATOR_SHOWCASE_SAVE_FAILED",
+      "Không lưu được hồ sơ Creator. Vui lòng thử lại.",
+    );
+  }
+  return data;
+}
 adminResourceRoutes.get("/creator-showcase/:id", async (req, res) => {
   const id = uuid.parse(req.params.id);
   const data = await result(
@@ -143,35 +182,38 @@ adminResourceRoutes.get("/creator-showcase", async (req, res) => {
       `display_name.ilike.%${search.replace(/[%,()]/g, " ")}%,title.ilike.%${search.replace(/[%,()]/g, " ")}%`,
     );
   const { data, error, count } = await query;
-  if (error)
+  if (error) {
+    console.error("Creator showcase list query failed", {
+      code: error.code,
+      message: error.message,
+    });
+    if (["PGRST204", "42703"].includes(error.code ?? "")) {
+      throw new ApiError(
+        503,
+        "CREATOR_SHOWCASE_SCHEMA_NOT_READY",
+        "Database chưa được cập nhật cho tính năng Creator. Hãy áp dụng migration mới nhất rồi thử lại.",
+      );
+    }
     throw new ApiError(
       500,
       "DATABASE_ERROR",
       "Unable to load Creator showcase.",
     );
+  }
   send(res, { items: data ?? [], total: count ?? 0, page, limit: 12 });
 });
 adminResourceRoutes.post("/creator-showcase", async (req, res) => {
   const payload = showcasePayload.parse(req.body);
-  const data = await result(
-    db.rpc("admin_manage_creator_showcase", {
-      actor_id: req.identity.id,
-      operation: "create",
-      payload,
-    }),
-  );
+  const data = await saveCreatorShowcase(req.identity.id, "create", payload);
   res.status(201);
   send(res, data);
 });
 adminResourceRoutes.patch("/creator-showcase/:id", async (req, res) => {
   const payload = showcasePayload.parse(req.body);
-  const data = await result(
-    db.rpc("admin_manage_creator_showcase", {
-      actor_id: req.identity.id,
-      operation: "update",
-      payload: { ...payload, id: uuid.parse(req.params.id) },
-    }),
-  );
+  const data = await saveCreatorShowcase(req.identity.id, "update", {
+    ...payload,
+    id: uuid.parse(req.params.id),
+  });
   send(res, data);
 });
 adminResourceRoutes.delete("/creator-showcase/:id", async (req, res) => {

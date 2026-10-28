@@ -2,6 +2,11 @@ import { Router } from "express";
 import { z } from "zod";
 import { db, result } from "./db.js";
 import { ApiError } from "./utils/api-error.js";
+import {
+  creatorLocations,
+  creatorPriceFilterValues,
+  creatorPriceOptions,
+} from "./creator-filter-options.js";
 
 export const creatorRoutes = Router();
 const filters = z
@@ -11,7 +16,7 @@ const filters = z
     search: z.string().trim().max(100).default(""),
     category: z.string().trim().max(80).optional(),
     skill: z.string().trim().max(80).optional(),
-    location: z.string().trim().max(80).optional(),
+    location: z.enum(creatorLocations).optional(),
     experience: z
       .enum(["STUDENT", "JUNIOR", "MID", "SENIOR", "LEAD"])
       .optional(),
@@ -20,7 +25,16 @@ const filters = z
       .optional(),
     verified: z.enum(["true", "false"]).optional(),
     rating: z.coerce.number().min(0).max(5).optional(),
-    price_max: z.coerce.number().min(0).max(1e12).optional(),
+    price_max: z.coerce
+      .number()
+      .refine(
+        (value) =>
+          creatorPriceFilterValues.includes(
+            value as (typeof creatorPriceFilterValues)[number],
+          ),
+        "Invalid price filter.",
+      )
+      .optional(),
     sort: z
       .enum(["recommended", "rating", "projects", "price"])
       .default("recommended"),
@@ -40,7 +54,12 @@ creatorRoutes.get("/creators/filters", async (_req, res) => {
     throw new ApiError(500, "DATABASE_ERROR", "Không thể tải bộ lọc Creator.");
   res.json({
     success: true,
-    data: { categories: categories.data, skills: skills.data },
+    data: {
+      categories: categories.data,
+      skills: skills.data,
+      locations: creatorLocations,
+      price_options: creatorPriceOptions,
+    },
   });
 });
 
