@@ -1,10 +1,92 @@
 import { Router } from "express";
+import { z } from "zod";
 import { ApiError, db, result } from "./db.js";
 import { resources, uuid } from "./validators.js";
 import { list } from "./utils/pagination.js";
 import { send } from "./utils/response.js";
 
 export const adminResourceRoutes = Router();
+const secureImageUrl = z.union([
+  z.literal(""),
+  z
+    .url()
+    .max(2000)
+    .refine((value) => {
+      const url = new URL(value);
+      return url.protocol === "https:" && !url.username && !url.password;
+    }, "Image must use a public HTTPS URL."),
+]);
+const hasSafeText = (value: string) =>
+  !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value);
+const plainText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .refine(hasSafeText, "Control characters are not allowed.");
+const showcaseTags = (limit: number, length: number) =>
+  z
+    .array(z.string().trim().min(1).max(length).refine(hasSafeText))
+    .max(limit)
+    .refine(
+      (items) =>
+        new Set(items.map((item) => item.toLocaleLowerCase())).size ===
+        items.length,
+      "Duplicate entries are not allowed.",
+    );
+const showcasePayload = z
+  .object({
+    display_name: z.string().trim().min(2).max(150).refine(hasSafeText),
+    slug: z
+      .string()
+      .trim()
+      .min(3)
+      .max(80)
+      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    title: z.string().trim().min(2).max(200).refine(hasSafeText),
+    bio: plainText(5000),
+    avatar_url: secureImageUrl,
+    cover_url: secureImageUrl,
+    location: plainText(100),
+    university: plainText(200),
+    major: plainText(200),
+    experience_level: z.enum(["STUDENT", "JUNIOR", "MID", "SENIOR", "LEAD"]),
+    price_from: z.number().int().min(0).max(1_000_000_000_000).nullable(),
+    tools: showcaseTags(30, 60),
+    languages: showcaseTags(20, 50),
+    category_ids: z
+      .array(uuid)
+      .max(10)
+      .refine((items) => new Set(items).size === items.length),
+    skill_ids: z
+      .array(uuid)
+      .max(30)
+      .refine((items) => new Set(items).size === items.length),
+    featured: z.boolean(),
+    is_demo: z.boolean(),
+    published: z.boolean(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (
+      value.published &&
+      (value.bio.length < 30 ||
+        value.category_ids.length === 0 ||
+        value.skill_ids.length === 0)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "Published profiles need a 30-character bio, one category and one skill.",
+      });
+    }
+    if (value.featured && !value.published) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Only published profiles can be featured.",
+      });
+    }
+  });
 adminResourceRoutes.get("/creator-showcase/:id", async (req, res) => {
   const id = uuid.parse(req.params.id);
   const data = await result(
@@ -70,22 +152,24 @@ adminResourceRoutes.get("/creator-showcase", async (req, res) => {
   send(res, { items: data ?? [], total: count ?? 0, page, limit: 12 });
 });
 adminResourceRoutes.post("/creator-showcase", async (req, res) => {
+  const payload = showcasePayload.parse(req.body);
   const data = await result(
     db.rpc("admin_manage_creator_showcase", {
       actor_id: req.identity.id,
       operation: "create",
-      payload: req.body,
+      payload,
     }),
   );
   res.status(201);
   send(res, data);
 });
 adminResourceRoutes.patch("/creator-showcase/:id", async (req, res) => {
+  const payload = showcasePayload.parse(req.body);
   const data = await result(
     db.rpc("admin_manage_creator_showcase", {
       actor_id: req.identity.id,
       operation: "update",
-      payload: { ...req.body, id: uuid.parse(req.params.id) },
+      payload: { ...payload, id: uuid.parse(req.params.id) },
     }),
   );
   send(res, data);

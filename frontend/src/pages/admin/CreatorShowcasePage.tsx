@@ -4,6 +4,10 @@ import { useApi } from "../../hooks/useApi";
 import { api } from "../../services/api";
 import { ActionForm, Page, Pagination, State } from "../../components/ui";
 import type { CreatorOption } from "../public/creator-profile.types";
+import {
+  PortfolioMediaField,
+  uploadPortfolioMedia,
+} from "../../components/PortfolioMediaField";
 
 type Showcase = {
   id: string;
@@ -56,6 +60,107 @@ const fields: [keyof Showcase, string][] = [
   ["tools", "Công cụ, cách nhau bằng dấu phẩy"],
   ["languages", "Ngôn ngữ, cách nhau bằng dấu phẩy"],
 ];
+
+function splitTags(
+  value: string,
+  label: string,
+  maxItems: number,
+  maxLength: number,
+) {
+  const items = value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (items.length > maxItems)
+    throw new Error(`${label}: tối đa ${maxItems} mục.`);
+  if (items.some((item) => item.length > maxLength))
+    throw new Error(`${label}: mỗi mục tối đa ${maxLength} ký tự.`);
+  if (
+    new Set(items.map((item) => item.toLocaleLowerCase())).size !== items.length
+  )
+    throw new Error(`${label}: không nhập mục trùng nhau.`);
+  return items;
+}
+
+function validateShowcaseForm(data: FormData) {
+  const get = (name: string) => String(data.get(name) ?? "").trim();
+  const display_name = get("display_name");
+  const slug = get("slug");
+  const title = get("title");
+  const bio = String(data.get("bio") ?? "").trim();
+  const location = get("location");
+  const university = get("university");
+  const major = get("major");
+  if (display_name.length < 2 || display_name.length > 150)
+    throw new Error("Tên Creator phải từ 2 đến 150 ký tự.");
+  if (
+    slug.length < 3 ||
+    slug.length > 80 ||
+    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)
+  )
+    throw new Error(
+      "Đường dẫn phải dài 3–80 ký tự, chỉ gồm chữ thường không dấu, số và dấu gạch ngang.",
+    );
+  if (title.length < 2 || title.length > 200)
+    throw new Error("Chức danh phải từ 2 đến 200 ký tự.");
+  if (bio.length > 5000) throw new Error("Giới thiệu tối đa 5.000 ký tự.");
+  if (location.length > 100 || university.length > 200 || major.length > 200)
+    throw new Error(
+      "Khu vực tối đa 100 ký tự; trường học và chuyên ngành tối đa 200 ký tự.",
+    );
+  const priceText = get("price_from");
+  if (
+    priceText &&
+    (!/^\d+$/.test(priceText) || Number(priceText) > 1_000_000_000_000)
+  )
+    throw new Error(
+      "Giá tham khảo phải là số nguyên từ 0 đến 1.000.000.000.000 VNĐ.",
+    );
+  const category_ids = data.getAll("category_ids").map(String);
+  const skill_ids = data.getAll("skill_ids").map(String);
+  if (
+    new Set(category_ids).size !== category_ids.length ||
+    category_ids.length > 10 ||
+    new Set(skill_ids).size !== skill_ids.length ||
+    skill_ids.length > 30
+  )
+    throw new Error("Không chọn trùng; tối đa 10 chuyên môn và 30 kỹ năng.");
+  const published = data.has("published");
+  const featured = data.has("featured");
+  if (
+    published &&
+    (bio.length < 30 || category_ids.length === 0 || skill_ids.length === 0)
+  )
+    throw new Error(
+      "Để công khai, cần giới thiệu ít nhất 30 ký tự, tối thiểu 1 chuyên môn và 1 kỹ năng.",
+    );
+  if (featured && !published)
+    throw new Error("Chỉ hồ sơ công khai mới có thể đặt nổi bật.");
+  const experience_level = get("experience_level");
+  if (
+    !["STUDENT", "JUNIOR", "MID", "SENIOR", "LEAD"].includes(experience_level)
+  )
+    throw new Error("Vui lòng chọn cấp độ hợp lệ.");
+  return {
+    display_name,
+    slug,
+    title,
+    bio,
+    location,
+    university,
+    major,
+    experience_level,
+    price_from: priceText ? Number(priceText) : null,
+    tools: splitTags(get("tools"), "Công cụ", 30, 60),
+    languages: splitTags(get("languages"), "Ngôn ngữ", 20, 50),
+    category_ids,
+    skill_ids,
+    featured,
+    is_demo: data.has("is_demo"),
+    published,
+  };
+}
+
 export function CreatorShowcasePage() {
   const [page, setPage] = useState(1),
     [editing, setEditing] = useState<Showcase | null>(null);
@@ -95,33 +200,19 @@ export function CreatorShowcasePage() {
           <ActionForm
             key={editing.id || "new"}
             onSubmit={async (data) => {
-              const get = (n: string) => String(data.get(n) || "");
+              const validated = validateShowcaseForm(data);
+              const uploaded = await uploadPortfolioMedia(data, [
+                "avatar_url",
+                "cover_url",
+              ]);
               const payload = {
-                ...editing,
-                display_name: get("display_name").trim(),
-                slug: get("slug").trim(),
-                title: get("title").trim(),
-                bio: get("bio"),
-                avatar_url: get("avatar_url"),
-                cover_url: get("cover_url"),
-                location: get("location"),
-                university: get("university"),
-                major: get("major"),
-                experience_level: get("experience_level"),
-                price_from: get("price_from") || null,
-                tools: get("tools")
-                  .split(",")
-                  .map((x) => x.trim())
-                  .filter(Boolean),
-                languages: get("languages")
-                  .split(",")
-                  .map((x) => x.trim())
-                  .filter(Boolean),
-                category_ids: data.getAll("category_ids"),
-                skill_ids: data.getAll("skill_ids"),
-                featured: data.has("featured"),
-                is_demo: data.has("is_demo"),
-                published: data.has("published"),
+                ...validated,
+                avatar_url: data.has("avatar_url_remove")
+                  ? ""
+                  : uploaded.avatar_url[0] || editing.avatar_url || "",
+                cover_url: data.has("cover_url_remove")
+                  ? ""
+                  : uploaded.cover_url[0] || editing.cover_url || "",
               };
               return api(
                 `/admin/creator-showcase${editing.id ? `/${editing.id}` : ""}`,
@@ -137,19 +228,83 @@ export function CreatorShowcasePage() {
             }}
           >
             <div className="form-grid">
-              {fields.map(([name, label]) => (
-                <label className="field" key={name}>
-                  {label}
-                  <input
-                    name={String(name)}
-                    defaultValue={editing[name] as string | number | undefined}
-                    required={["display_name", "slug", "title"].includes(
-                      String(name),
+              {fields
+                .filter(
+                  ([name]) => name !== "avatar_url" && name !== "cover_url",
+                )
+                .map(([name, label]) => (
+                  <label className="field" key={name}>
+                    {label}
+                    {name === "bio" ? (
+                      <textarea
+                        name="bio"
+                        defaultValue={editing.bio}
+                        maxLength={5000}
+                        rows={6}
+                        aria-describedby="creator-bio-hint"
+                      />
+                    ) : (
+                      <input
+                        name={String(name)}
+                        defaultValue={
+                          editing[name] as string | number | undefined
+                        }
+                        required={["display_name", "slug", "title"].includes(
+                          String(name),
+                        )}
+                        type={name === "price_from" ? "number" : "text"}
+                        min={name === "price_from" ? 0 : undefined}
+                        max={
+                          name === "price_from" ? 1_000_000_000_000 : undefined
+                        }
+                        step={name === "price_from" ? 1 : undefined}
+                        maxLength={
+                          name === "display_name"
+                            ? 150
+                            : name === "title"
+                              ? 200
+                              : name === "location"
+                                ? 100
+                                : name === "university" || name === "major"
+                                  ? 200
+                                  : name === "tools"
+                                    ? 1829
+                                    : name === "languages"
+                                      ? 1019
+                                      : undefined
+                        }
+                        minLength={
+                          name === "display_name" || name === "title"
+                            ? 2
+                            : undefined
+                        }
+                        pattern={
+                          name === "slug" ? "[a-z0-9]+(-[a-z0-9]+)*" : undefined
+                        }
+                      />
                     )}
-                    type={name === "price_from" ? "number" : "text"}
-                  />
-                </label>
-              ))}
+                    {name === "bio" && (
+                      <small id="creator-bio-hint">
+                        Tối đa 5.000 ký tự; hồ sơ cần ít nhất 30 ký tự giới
+                        thiệu để công khai.
+                      </small>
+                    )}
+                  </label>
+                ))}
+              <PortfolioMediaField
+                name="avatar_url"
+                label="Ảnh đại diện"
+                value={editing.avatar_url}
+                hideUrl
+                allowClear
+              />
+              <PortfolioMediaField
+                name="cover_url"
+                label="Ảnh bìa"
+                value={editing.cover_url}
+                hideUrl
+                allowClear
+              />
               <label className="field">
                 Cấp độ
                 <select

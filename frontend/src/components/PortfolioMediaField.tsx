@@ -7,11 +7,15 @@ export function PortfolioMediaField({
   label,
   value,
   multiple = false,
+  hideUrl = false,
+  allowClear = false,
 }: {
   name: string;
   label: string;
   value?: string | string[];
   multiple?: boolean;
+  hideUrl?: boolean;
+  allowClear?: boolean;
 }) {
   const id = useId();
   const [files, setFiles] = useState<File[]>([]);
@@ -19,6 +23,7 @@ export function PortfolioMediaField({
   const [urls, setUrls] = useState(
     Array.isArray(value) ? value.join("\n") : value || "",
   );
+  const [cleared, setCleared] = useState(false);
   useEffect(() => {
     const next = files.map((file) => URL.createObjectURL(file));
     setPreviews(next);
@@ -28,53 +33,72 @@ export function PortfolioMediaField({
     ? [...urls.split("\n").filter(Boolean), ...previews]
     : previews.length
       ? previews
-      : urls
+      : urls && !cleared
         ? [urls]
         : [];
   return (
     <div className="field">
-      <label htmlFor={id}>{label} · JPG, PNG, WEBP · tối đa 5 MB/ảnh</label>
+      <label htmlFor={id}>{label} · JPG, PNG hoặc WEBP · tối đa 5 MB/ảnh</label>
       <input
         id={id}
         type="file"
         name={`${name}_files`}
         multiple={multiple}
         accept={imageTypes.join(",")}
-        onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+        onChange={(event) => {
+          setFiles(Array.from(event.target.files ?? []));
+          setCleared(false);
+        }}
       />
       <small>
         {multiple
-          ? "Ảnh được thêm vào thư viện khi lưu dự án. Tối đa 50 ảnh."
-          : "Ảnh được tải lên và thay ảnh hiện tại khi lưu."}
+          ? "Ảnh sẽ được thêm vào thư viện khi lưu. Tối đa 50 ảnh."
+          : "Chọn ảnh từ thiết bị. Ảnh mới sẽ thay ảnh hiện tại khi lưu."}
       </small>
-      <label htmlFor={`${id}-url`}>
-        {multiple
-          ? "Liên kết ảnh hiện có (mỗi dòng một URL; xóa dòng để gỡ ảnh)"
-          : "Liên kết ảnh hiện có (có thể để trống)"}
-      </label>
-      {multiple ? (
-        <textarea
-          id={`${id}-url`}
-          name={name}
-          value={urls}
-          onChange={(e) => setUrls(e.target.value)}
-        />
-      ) : (
-        <input
-          id={`${id}-url`}
-          name={name}
-          type="url"
-          value={urls}
-          onChange={(e) => setUrls(e.target.value)}
-        />
+      {!hideUrl && (
+        <>
+          <label htmlFor={`${id}-url`}>
+            {multiple
+              ? "URL thư viện ảnh (mỗi dòng một URL)"
+              : "URL ảnh hiện tại (không bắt buộc)"}
+          </label>
+          {multiple ? (
+            <textarea
+              id={`${id}-url`}
+              name={name}
+              value={urls}
+              onChange={(event) => setUrls(event.target.value)}
+            />
+          ) : (
+            <input
+              id={`${id}-url`}
+              name={name}
+              type="url"
+              value={urls}
+              onChange={(event) => setUrls(event.target.value)}
+            />
+          )}
+        </>
+      )}
+      {allowClear && urls && !cleared && (
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => setCleared(true)}
+        >
+          Gỡ ảnh hiện tại
+        </button>
+      )}
+      {allowClear && cleared && (
+        <input type="hidden" name={`${name}_remove`} value="true" />
       )}
       {!!displayed.length && (
         <div className="portfolio-upload-previews">
-          {displayed.map((url, i) => (
+          {displayed.map((url, index) => (
             <img
-              key={`${url}-${i}`}
+              key={`${url}-${index}`}
               src={url}
-              alt={`${label} ${i + 1}`}
+              alt={`${label} ${index + 1}`}
               width={120}
               height={90}
             />
@@ -96,7 +120,7 @@ export async function uploadPortfolioMedia(form: FormData, names: string[]) {
   }));
   for (const { name, files } of batches) {
     if (name !== "gallery" && files.length > 1)
-      throw new Error("Chỉ chọn một ảnh đại diện.");
+      throw new Error("Chỉ chọn một ảnh cho mỗi mục.");
     if (
       name === "gallery" &&
       files.length +
@@ -104,15 +128,17 @@ export async function uploadPortfolioMedia(form: FormData, names: string[]) {
           .split("\n")
           .filter((line) => line.trim()).length >
         50
-    )
+    ) {
       throw new Error("Thư viện có tối đa 50 ảnh.");
+    }
     if (
       files.some(
         (file) =>
           !imageTypes.includes(file.type) || file.size > 5 * 1024 * 1024,
       )
-    )
-      throw new Error("Chọn ảnh JPG, PNG hoặc WEBP, tối đa 5 MB/ảnh.");
+    ) {
+      throw new Error("Chọn ảnh JPG, PNG hoặc WEBP, tối đa 5 MB mỗi ảnh.");
+    }
   }
   const uploaded: Record<string, string[]> = {};
   for (const { name, files } of batches) {
