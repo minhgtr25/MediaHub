@@ -292,7 +292,16 @@ export function ProjectDetail() {
             <header className="project-case-heading">
               <div className="project-case-tags">
                 {p.category && <span>{p.category}</span>}
-                {p.client && <span>Khách hàng: {p.client}</span>}
+                {p.client?.startsWith("Creator: ") ? (
+                  <span>
+                    Portfolio riêng của {p.client.slice(9)} · không thuộc dự án
+                    MediaHub
+                  </span>
+                ) : p.client ? (
+                  <span>Khách hàng: {p.client}</span>
+                ) : (
+                  <span>Dự án do MediaHub cùng Creator thực hiện</span>
+                )}
                 {p.year && <span>Năm thực hiện: {p.year}</span>}
               </div>
               <h1>{p.title}</h1>
@@ -302,7 +311,10 @@ export function ProjectDetail() {
               <figure className="project-case-showcase">
                 <img src={p.image_url} alt={p.title} />
                 <figcaption>
-                  Hồ sơ sản phẩm MediaHub · {p.category || "Dự án truyền thông"}
+                  {p.client?.startsWith("Creator: ")
+                    ? "Portfolio Creator"
+                    : "Dự án MediaHub"}{" "}
+                  · {p.category || "Dự án truyền thông"}
                 </figcaption>
               </figure>
             )}
@@ -374,7 +386,14 @@ export function ProjectDetail() {
                   <h2>Thông tin dự án</h2>
                   <dl>
                     {[
-                      ["Khách hàng", p.client],
+                      [
+                        p.client?.startsWith("Creator: ")
+                          ? "Creator"
+                          : "Khách hàng",
+                        p.client?.startsWith("Creator: ")
+                          ? p.client.slice(9)
+                          : p.client,
+                      ],
                       ["Dịch vụ", p.category],
                       ["Lĩnh vực", p.industry],
                       ["Năm thực hiện", p.year],

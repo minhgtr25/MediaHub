@@ -48,9 +48,12 @@ export function CompanyPortfolio({ compact = false }: { compact?: boolean }) {
       <header className="company-portfolio-heading">
         <div>
           <span className="eyebrow">HỒ SƠ DỰ ÁN</span>
-          <Title>{compact ? "Dự án MediaHub" : "Dự án nổi bật"}</Title>
+          <Title>
+            {compact ? "Dự án MediaHub và Creator" : "Dự án nổi bật"}
+          </Title>
           <p className="muted">
-            Những sản phẩm được MediaHub cùng đội ngũ Creator thực hiện.
+            Dự án MediaHub thực hiện và portfolio riêng do Creator chia sẻ, với
+            nguồn được ghi rõ trong từng hồ sơ.
           </p>
         </div>
         {compact && (
@@ -86,7 +89,7 @@ export function CompanyPortfolio({ compact = false }: { compact?: boolean }) {
             <span>Loại hồ sơ</span>
             <select value={kind} onChange={(e) => setKind(e.target.value)}>
               <option value="ALL">Tất cả hồ sơ</option>
-              <option value="PORTFOLIO">Hồ sơ công ty</option>
+              <option value="PORTFOLIO">Dự án và portfolio</option>
               <option value="EXCERPT">Trích đoạn đã duyệt</option>
             </select>
           </label>
@@ -123,11 +126,15 @@ export function CompanyPortfolio({ compact = false }: { compact?: boolean }) {
                   {p.category ||
                     (p.kind === "EXCERPT"
                       ? "Trích đoạn đã duyệt"
-                      : "Hồ sơ công ty")}
+                      : "Hồ sơ dự án")}
                 </span>
                 <h3>{p.title}</h3>
                 {p.customer_name && (
-                  <p className="company-project-client">{p.customer_name}</p>
+                  <p className="company-project-client">
+                    {p.customer_name.startsWith("Creator: ")
+                      ? `Portfolio riêng của ${p.customer_name.slice(9)}`
+                      : p.customer_name}
+                  </p>
                 )}
                 {p.description && (
                   <p className="company-project-summary">{p.description}</p>
