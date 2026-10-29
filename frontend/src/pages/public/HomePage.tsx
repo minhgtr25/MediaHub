@@ -19,7 +19,7 @@ import { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { State } from "../../components/ui";
 import { useApi } from "../../hooks/useApi";
-import { CompanyPortfolio } from "../../components/CompanyPortfolio";
+import { FeaturedCreatorPortfolio } from "../../components/FeaturedCreatorPortfolio";
 import { ServiceProcess } from "../../components/ServiceProcess";
 import { LandingAudiences } from "../../components/LandingAudiences";
 
@@ -115,9 +115,9 @@ export function HomePage() {
             <Link className="btn btn-primary" to="/request-project">
               Yêu cầu tư vấn <ArrowRight />
             </Link>
-            <Link className="btn btn-ghost" to="/projects">
+            <a className="btn btn-ghost" href="#creator-projects">
               <Play /> Xem dự án nổi bật
-            </Link>
+            </a>
           </div>
           <State query={query}>
             <div className="social-proof">
@@ -208,7 +208,7 @@ export function HomePage() {
           </article>
         ))}
       </section>
-      <CompanyPortfolio compact />
+      <FeaturedCreatorPortfolio />
       <ServiceProcess embedded />
       <section className="home-section">
         <SectionHeading
