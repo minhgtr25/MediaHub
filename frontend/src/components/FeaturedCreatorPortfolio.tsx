@@ -35,8 +35,8 @@ export function FeaturedCreatorPortfolio() {
           <span className="eyebrow">PORTFOLIO CREATOR</span>
           <h2>Portfolio Creator nổi bật</h2>
           <p className="muted">
-            Dự án riêng do Creator chia sẻ để giới thiệu năng lực. Đây không
-            phải dự án thực hiện cùng MediaHub.
+            Sản phẩm trong portfolio của các Creator. Mỗi dự án được ghi rõ là
+            tác phẩm riêng hay được thực hiện cùng MediaHub.
           </p>
         </div>
         <Link className="btn btn-ghost" to="/creators">
@@ -62,7 +62,11 @@ export function FeaturedCreatorPortfolio() {
                 )}
               </div>
               <div className="company-project-content">
-                <span className="eyebrow">DỰ ÁN RIÊNG CỦA CREATOR</span>
+                <span className="eyebrow">
+                  {project.client === "MediaHub"
+                    ? "DỰ ÁN CÙNG MEDIAHUB"
+                    : "DỰ ÁN RIÊNG CỦA CREATOR"}
+                </span>
                 <h3>{project.title}</h3>
                 <p className="company-project-client">{creator.display_name}</p>
                 <footer>

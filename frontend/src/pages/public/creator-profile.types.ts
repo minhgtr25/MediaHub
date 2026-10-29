@@ -16,7 +16,12 @@ export type PublicCreator = {
   is_demo: boolean;
   availability: string;
   creator_skills: { skills: CreatorOption }[];
-  creator_portfolio: { id: string; title: string; thumbnail_url?: string }[];
+  creator_portfolio: {
+    id: string;
+    title: string;
+    thumbnail_url?: string;
+    client?: string;
+  }[];
 };
 
 export type PublicCreatorDetail = Omit<PublicCreator, "creator_portfolio"> & {
