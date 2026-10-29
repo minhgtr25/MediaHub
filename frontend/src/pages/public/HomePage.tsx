@@ -20,6 +20,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { State } from "../../components/ui";
 import { useApi } from "../../hooks/useApi";
 import { FeaturedCreatorPortfolio } from "../../components/FeaturedCreatorPortfolio";
+import { CompanyPortfolio } from "../../components/CompanyPortfolio";
 import { ServiceProcess } from "../../components/ServiceProcess";
 import { LandingAudiences } from "../../components/LandingAudiences";
 
@@ -115,7 +116,7 @@ export function HomePage() {
             <Link className="btn btn-primary" to="/request-project">
               Yêu cầu tư vấn <ArrowRight />
             </Link>
-            <a className="btn btn-ghost" href="#creator-projects">
+            <a className="btn btn-ghost" href="#mediahub-projects">
               <Play /> Xem dự án nổi bật
             </a>
           </div>
@@ -208,6 +209,7 @@ export function HomePage() {
           </article>
         ))}
       </section>
+      <CompanyPortfolio compact />
       <FeaturedCreatorPortfolio />
       <ServiceProcess embedded />
       <section className="home-section">

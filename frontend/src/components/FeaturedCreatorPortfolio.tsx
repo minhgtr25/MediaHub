@@ -33,7 +33,7 @@ export function FeaturedCreatorPortfolio() {
       <header className="company-portfolio-heading">
         <div>
           <span className="eyebrow">PORTFOLIO CREATOR</span>
-          <h2>Dự án nổi bật</h2>
+          <h2>Portfolio Creator nổi bật</h2>
           <p className="muted">
             Dự án riêng do Creator chia sẻ để giới thiệu năng lực. Đây không
             phải dự án thực hiện cùng MediaHub.

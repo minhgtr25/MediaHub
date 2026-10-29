@@ -43,13 +43,14 @@ export function CompanyPortfolio({ compact = false }: { compact?: boolean }) {
   return (
     <section
       className={`company-portfolio ${compact ? "home-section" : "page section"}`}
+      id={compact ? "mediahub-projects" : undefined}
     >
       <header className="company-portfolio-heading">
         <div>
           <span className="eyebrow">HỒ SƠ DỰ ÁN</span>
-          <Title>Dự án nổi bật</Title>
+          <Title>{compact ? "Dự án MediaHub" : "Dự án nổi bật"}</Title>
           <p className="muted">
-            Những sản phẩm được MediaHub quản lý và triển khai.
+            Những sản phẩm được MediaHub cùng đội ngũ Creator thực hiện.
           </p>
         </div>
         {compact && (
