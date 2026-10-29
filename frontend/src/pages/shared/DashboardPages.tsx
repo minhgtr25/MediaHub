@@ -20,6 +20,7 @@ import {
   labels,
 } from "../../components/ui";
 import { RequestOverview } from "./RequestPages";
+import { MediaHubMvBillPanel } from "../../components/MediaHubMvBillPanel";
 
 type DashboardData = {
   total_projects?: number;
@@ -39,6 +40,12 @@ type DashboardData = {
     read_at?: string | null;
   }[];
   by_status?: { status: string; count: number }[];
+  showcase_completed_projects?: {
+    id: string;
+    slug: string;
+    title: string;
+    category: string;
+  }[];
 };
 type ProjectSummary = {
   id: string;
@@ -156,7 +163,24 @@ function Dashboard({ admin = false }: { admin?: boolean }) {
           </div>
         </div>
       </State>
-      <h2 className="workspace-section-title">Dự án của bạn</h2>
+      {admin && <MediaHubMvBillPanel />}
+      {admin && Boolean(query.data?.showcase_completed_projects?.length) && (
+        <section className="panel">
+          <h2>Dự án MediaHub đã hoàn thành</h2>
+          <p>
+            Ba MV thực hiện cùng Ngô Duy Anh, được công bố trong HỒ SƠ DỰ ÁN.
+          </p>
+          {query.data?.showcase_completed_projects?.map((project) => (
+            <div className="panel-head" key={project.id}>
+              <span>{project.title}</span>
+              <Link to={`/projects/${project.slug}`}>Xem hồ sơ →</Link>
+            </div>
+          ))}
+        </section>
+      )}
+      <h2 className="workspace-section-title">
+        {admin ? "Dự án đang quản lý" : "Dự án của bạn"}
+      </h2>
       <ProjectList admin={admin} />
     </Page>
   );

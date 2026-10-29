@@ -12,6 +12,14 @@ import { list } from "./utils/pagination.js";
 import { send } from "./utils/response.js";
 
 export const legacyAdminRoutes = Router();
+legacyAdminRoutes.get("/mediahub-mv-bills", async (req, res) =>
+  send(
+    res,
+    await result(
+      db.rpc("admin_mediahub_mv_bill_report", { actor_id: req.identity.id }),
+    ),
+  ),
+);
 legacyAdminRoutes.post("/projects/:id/issue-invoice", async (req, res) =>
   send(
     res,
@@ -113,12 +121,42 @@ legacyAdminRoutes.get("/projects", async (req, res) =>
   send(res, await projectList(req)),
 );
 for (const path of ["dashboard", "revenue"])
-  legacyAdminRoutes.get(`/${path}`, async (req, res) =>
-    send(
-      res,
-      await result(db.rpc("dashboard_report", { actor_id: req.identity.id })),
-    ),
-  );
+  legacyAdminRoutes.get(`/${path}`, async (req, res) => {
+    const report = await result(
+      db.rpc("dashboard_report", { actor_id: req.identity.id }),
+    );
+    if (!report)
+      throw new ApiError(500, "REPORT_UNAVAILABLE", "Không thể tải báo cáo.");
+    if (path === "revenue") return send(res, report);
+    const completedShowcase = await result(
+      db
+        .from("portfolio")
+        .select("id,slug,title,category")
+        .in("slug", [
+          "mediahub-mv-remake-cau-hon",
+          "mediahub-mv-remake-toi-cho-em",
+          "mediahub-mv-remake-loi-tam-biet-chua-noi",
+        ])
+        .eq("published", true)
+        .eq("is_demo", false),
+    );
+    const showcased = completedShowcase ?? [];
+    const statusCounts = report.by_status.filter(
+      (item) => item.status !== "COMPLETED",
+    );
+    const completedCount =
+      (report.by_status.find((item) => item.status === "COMPLETED")?.count ??
+        0) + showcased.length;
+    return send(res, {
+      ...report,
+      total_projects: report.total_projects + showcased.length,
+      completed_projects: report.completed_projects + showcased.length,
+      by_status: completedCount
+        ? [...statusCounts, { status: "COMPLETED", count: completedCount }]
+        : statusCounts,
+      showcase_completed_projects: showcased,
+    });
+  });
 legacyAdminRoutes.get("/customers", async (req, res) =>
   send(
     res,

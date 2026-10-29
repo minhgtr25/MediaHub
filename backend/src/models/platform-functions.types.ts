@@ -2,6 +2,22 @@ import type { Database } from "./database.types.js";
 import type { PublicCaseStudyPage } from "./commerce.model.js";
 
 export type PlatformFunctions = Database["public"]["Functions"] & {
+  admin_mediahub_mv_bill_report: {
+    Args: { actor_id: string };
+    Returns: {
+      total: number;
+      count: number;
+      by_month: { label: string; value: number }[];
+      items: {
+        source_key: string;
+        amount: number;
+        received_at: string;
+        payer_label: string;
+        payee_label: string;
+        bank_transaction_reference: string | null;
+      }[];
+    };
+  };
   admin_user_directory: {
     Args: { actor_id: string; filters: import("./database.types.js").Json };
     Returns: import("./database.types.js").Json;

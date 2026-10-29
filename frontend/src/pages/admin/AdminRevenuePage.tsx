@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useApi } from "../../hooks/useApi";
 import { Page, State, Pagination, Status, money } from "../../components/ui";
 import { date } from "../shared/DashboardPages";
+import { MediaHubMvBillPanel } from "../../components/MediaHubMvBillPanel";
 
 type RevenueData = {
   total_revenue: number;
@@ -80,6 +81,7 @@ export function AdminRevenue() {
           </section>
         </div>
       </State>
+      <MediaHubMvBillPanel />
       <h2>Danh sách hóa đơn</h2>
       <State query={invoices}>
         <div className="panel table-wrap">
