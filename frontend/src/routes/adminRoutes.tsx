@@ -16,6 +16,7 @@ import {
   Profile,
   Notifications,
   AdminDashboard,
+  AdminVisitAnalytics,
   AdminProjects,
   AdminProjectDetail,
   AdminContent,
@@ -55,6 +56,7 @@ export const adminRoutes = (
         <Route path="payment-settings" element={<PaymentSettingsPage />} />
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="visit-analytics" element={<AdminVisitAnalytics />} />
         <Route path="finance" element={<FinanceReportPage />} />
         <Route path="files" element={<AdminFiles />} />
         <Route path="users" element={<AdminUsers />} />

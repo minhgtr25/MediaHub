@@ -138,6 +138,11 @@ export const AdminDashboard = lazy(() =>
     default: module.AdminDashboard,
   })),
 );
+export const AdminVisitAnalytics = lazy(() =>
+  import("../pages/admin/AdminVisitAnalyticsPage").then((module) => ({
+    default: module.AdminVisitAnalyticsPage,
+  })),
+);
 export const AdminProjects = lazy(() =>
   import("../pages/shared/DashboardPages").then((module) => ({
     default: module.AdminProjects,

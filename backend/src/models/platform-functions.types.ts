@@ -18,6 +18,14 @@ export type PlatformFunctions = Database["public"]["Functions"] & {
       }[];
     };
   };
+  record_site_visit: {
+    Args: { visitor_session: string };
+    Returns: boolean;
+  };
+  admin_visit_daily: {
+    Args: { from_day: string; through_day: string };
+    Returns: { visit_day: string; visits: number; demo_visits: number }[];
+  };
   admin_user_directory: {
     Args: { actor_id: string; filters: import("./database.types.js").Json };
     Returns: import("./database.types.js").Json;

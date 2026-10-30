@@ -27,6 +27,9 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
         <SideLink to="/admin/dashboard" icon={<LayoutDashboard />}>
           Tổng quan
         </SideLink>
+        <SideLink to="/admin/visit-analytics" icon={<BarChart3 />}>
+          Lượt truy cập
+        </SideLink>
         <SideLink to="/admin/website-projects" icon={<BriefcaseBusiness />}>
           Quản lý hồ sơ dự án
         </SideLink>

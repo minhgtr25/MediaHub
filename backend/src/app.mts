@@ -51,6 +51,7 @@ import { deliveryRoutes } from "./delivery-routes.js";
 import { requestRoutes } from "./request-routes.js";
 import { publicServiceRoutes } from "./public-service-routes.js";
 import { adminServicePackageRoutes } from "./admin-service-package-routes.js";
+import { publicVisitRoutes, adminVisitRoutes } from "./visit-routes.js";
 export const app = express();
 export default app;
 app.set("trust proxy", env.TRUST_PROXY_HOPS);
@@ -97,7 +98,7 @@ app.get("/api/ready", async (_req, res) => {
   }
   send(res, { status: "ready" });
 });
-app.use("/api/public", publicCatalogRoutes);
+app.use("/api/public", publicVisitRoutes, publicCatalogRoutes);
 app.use(
   "/api/public",
   publicServiceRoutes,
@@ -187,6 +188,7 @@ app.use(
   adminAccountRoutes,
   quotationRoutes,
   adminResourceRoutes,
+  adminVisitRoutes,
   legacyAdminRoutes,
 );
 const upload = multer({

@@ -2,6 +2,7 @@ import { RouteMetadata } from "./components/Metadata";
 import { Suspense } from "react";
 import { Routes } from "react-router-dom";
 import { AuthCallbackRedirect } from "./contexts/AuthContext";
+import { VisitTracker } from "./components/VisitTracker";
 import {
   staffRoutes,
   publicRoutes,
@@ -16,6 +17,7 @@ export default function App() {
   return (
     <>
       <RouteMetadata />
+      <VisitTracker />
       <AuthCallbackRedirect />
       <Suspense
         fallback={

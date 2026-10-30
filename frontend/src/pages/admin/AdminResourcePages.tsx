@@ -24,6 +24,48 @@ import {
   type ResourceRow,
 } from "./admin-resource-schemas";
 
+function projectSlug(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[đĐ]/g, "d")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 200)
+    .replace(/-+$/g, "");
+}
+
+function validYouTubeUrl(value: string) {
+  if (!value) return true;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") return false;
+    const host = url.hostname.toLowerCase();
+    let id = "";
+    if (["youtu.be", "www.youtu.be"].includes(host)) {
+      id = url.pathname.split("/").filter(Boolean)[0] ?? "";
+    } else if (
+      [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "youtube-nocookie.com",
+        "www.youtube-nocookie.com",
+      ].includes(host)
+    ) {
+      if (url.pathname === "/watch") id = url.searchParams.get("v") ?? "";
+      else {
+        const [, kind, videoId] = url.pathname.split("/");
+        if (["shorts", "embed", "live"].includes(kind)) id = videoId ?? "";
+      }
+    }
+    return /^[A-Za-z0-9_-]{11}$/.test(id);
+  } catch {
+    return false;
+  }
+}
+
 export function AdminContent({ resource }: { resource: string }) {
   return <ResourcePage resource={resource} />;
 }
@@ -125,6 +167,15 @@ function ResourcePage({ resource }: { resource: string }) {
                   "Số ngày dự kiến phải là số nguyên từ 1 trở lên.",
                 );
               if (resource === "portfolio") {
+                body.slug = projectSlug(String(body.slug || body.title || ""));
+                if (!validYouTubeUrl(String(body.video_url || "")))
+                  throw new Error(
+                    "Video phải là liên kết YouTube hoặc Shorts hợp lệ.",
+                  );
+                if (!body.slug)
+                  throw new Error(
+                    "Hãy nhập tên dự án để tạo đường dẫn hợp lệ.",
+                  );
                 if (editing.is_demo && body.published)
                   throw new Error(
                     "Đây là dữ liệu mẫu đã ẩn. Hãy tạo dự án mới bằng nội dung và ảnh thật.",

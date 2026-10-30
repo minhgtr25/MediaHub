@@ -75,6 +75,11 @@ function Dashboard({ admin = false }: { admin?: boolean }) {
             <Plus size={17} /> Gửi yêu cầu dịch vụ
           </Link>
         )}
+        {admin && (
+          <Link className="btn btn-ghost" to="/admin/visit-analytics">
+            Xem lượt truy cập <ArrowRight size={16} />
+          </Link>
+        )}
       </div>
       <RequestOverview />
       <State query={query}>

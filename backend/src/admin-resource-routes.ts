@@ -365,7 +365,16 @@ adminResourceRoutes.get("/portfolio", async (req, res) =>
   ),
 );
 adminResourceRoutes.post("/portfolio", async (req, res) => {
-  const body = resources.portfolio.strict().parse(req.body);
+  const parsed = resources.portfolio.strict().safeParse(req.body);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    throw new ApiError(
+      422,
+      "INVALID_PORTFOLIO",
+      `Dự án chưa hợp lệ ở trường ${issue.path.join(".") || "thông tin"}: ${issue.message}`,
+    );
+  }
+  const body = parsed.data;
   send(
     res,
     await result(
@@ -378,7 +387,16 @@ adminResourceRoutes.post("/portfolio", async (req, res) => {
   );
 });
 adminResourceRoutes.patch("/portfolio/:id", async (req, res) => {
-  const body = resources.portfolio.partial().strict().parse(req.body);
+  const parsed = resources.portfolio.partial().strict().safeParse(req.body);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    throw new ApiError(
+      422,
+      "INVALID_PORTFOLIO",
+      `Dự án chưa hợp lệ ở trường ${issue.path.join(".") || "thông tin"}: ${issue.message}`,
+    );
+  }
+  const body = parsed.data;
   send(
     res,
     await result(
